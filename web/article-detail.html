@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kairos - Article</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="theme.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="toast.js"></script>
+    <style>
+        .article-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: var(--primary-color);
+        }
+
+        .article-header {
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid #e8e4dc;
+        }
+
+        .article-source {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .article-title {
+            font-size: 2.25rem;
+            font-weight: 700;
+            line-height: 1.25;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+        }
+
+        .article-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .article-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .article-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            background: white;
+            border: 1px solid #e1e4e8;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .action-btn:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .action-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .action-btn.primary {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .action-btn.primary:hover {
+            background: var(--primary-hover);
+        }
+
+        /* Relevance & Sentiment badges */
+        .badges {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .badge-relevance-high {
+            background: #e6f4ea;
+            color: #1e7e34;
+        }
+
+        .badge-relevance-medium {
+            background: #fef7e0;
+            color: #b06000;
+        }
+
+        .badge-relevance-low {
+            background: #fce8e6;
+            color: #c5221f;
+        }
+
+        .badge-sentiment-positive {
+            background: #e6f4ea;
+            color: #1e7e34;
+        }
+
+        .badge-sentiment-neutral {
+            background: #f0f2f5;
+            color: var(--text-secondary);
+        }
+
+        .badge-sentiment-negative {
+            background: #fce8e6;
+            color: #c5221f;
+        }
+
+        /* Summary section */
+        .summary-section {
+            background: #faf9f7;
+            border: 1px solid #e8e4dc;
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-section h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            font-family: var(--font-body);
+            font-weight: 600;
+        }
+
+        .summary-text {
+            font-family: var(--font-heading);
+            font-size: 1.1rem;
+            line-height: 1.7;
+            color: var(--text-primary);
+        }
+
+        /* Tags */
+        .tags-section {
+            margin-bottom: 2rem;
+        }
+
+        .tags-section h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            font-family: var(--font-body);
+            font-weight: 600;
+        }
+
+        .tags-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.3rem 0.75rem;
+            background: #edf2f4;
+            color: var(--text-secondary);
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
+        /* Content section */
+        .content-section {
+            margin-bottom: 2rem;
+        }
+
+        .content-section h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            font-family: var(--font-body);
+            font-weight: 600;
+        }
+
+        .article-content {
+            font-family: var(--font-heading);
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: var(--text-primary);
+        }
+
+        .article-content p {
+            margin-bottom: 1.25rem;
+        }
+
+        .no-content {
+            color: var(--text-secondary);
+            font-style: italic;
+            padding: 2rem;
+            text-align: center;
+            background: #f8f9fa;
+            border-radius: var(--radius-sm);
+        }
+
+        /* Loading & Error states */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+            gap: 1rem;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e1e4e8;
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        .error-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #c5221f;
+        }
+
+        .error-state h2 {
+            margin-bottom: 1rem;
+        }
+
+        /* Button loading state */
+        .action-btn.loading {
+            position: relative;
+            color: transparent !important;
+            pointer-events: none;
+        }
+
+        .action-btn.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 16px;
+            height: 16px;
+            margin: -8px 0 0 -8px;
+            border: 2px solid rgba(0, 0, 0, 0.15);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* Topic link */
+        .topic-link {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .topic-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <a href="index.html" class="logo">
+            <span>🕐</span> Kairos
+        </a>
+        <nav class="nav-links">
+            <a href="index.html">Accueil</a>
+            <a href="topic-setup.html">Créer un Topic</a>
+            <a href="dashboard.html">Dashboard</a>
+        </nav>
+        <div class="user-menu" id="userMenu">
+            <!-- Dynamically populated -->
+        </div>
+        <button class="theme-toggle" id="themeToggle" aria-label="Changer de thème" title="Mode sombre/clair">
+            <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+        </button>
+    </header>
+
+    <div class="article-container">
+        <a href="dashboard.html" class="back-link">
+            <span>&larr;</span> Retour au dashboard
+        </a>
+
+        <div id="articleContent">
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <span class="loading-text">Chargement de l'article...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Supabase client
+        const { url, anonKey, options } = window.KairosConfig.getSupabaseConfig();
+        const supabase = window.supabase.createClient(url, anonKey, options);
+
+        let article = null;
+        let topic = null;
+
+        // Get article ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const articleId = urlParams.get('id');
+
+        // Check authentication
+        async function checkAuth() {
+            const { data: { session } } = await supabase.auth.getSession();
+            const userMenu = document.getElementById('userMenu');
+
+            if (session) {
+                userMenu.innerHTML = `
+                    <span class="user-email">${session.user.email}</span>
+                    <button class="logout-btn" onclick="handleLogout()">Déconnexion</button>
+                `;
+                return session;
+            } else {
+                window.location.href = 'login.html';
+                return null;
+            }
+        }
+
+        async function handleLogout() {
+            await supabase.auth.signOut();
+            window.location.href = 'index.html';
+        }
+
+        // Fetch article data
+        async function fetchArticle() {
+            if (!articleId) {
+                showError('Aucun article spécifié');
+                return;
+            }
+
+            try {
+                // Fetch article
+                const { data: articleData, error: articleError } = await supabase
+                    .from('articles')
+                    .select('*')
+                    .eq('id', articleId)
+                    .single();
+
+                if (articleError) throw articleError;
+                if (!articleData) throw new Error('Article non trouvé');
+
+                article = articleData;
+
+                // Fetch topic if exists
+                if (article.topic_id) {
+                    const { data: topicData } = await supabase
+                        .from('topics')
+                        .select('id, topic_name')
+                        .eq('id', article.topic_id)
+                        .single();
+                    topic = topicData;
+                }
+
+                // Mark as read
+                await supabase
+                    .from('articles')
+                    .update({ read_status: true })
+                    .eq('id', articleId);
+
+                renderArticle();
+
+            } catch (error) {
+                console.error('Error fetching article:', error);
+                showError(error.message || 'Erreur lors du chargement');
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('articleContent').innerHTML = `
+                <div class="error-state">
+                    <h2>Erreur</h2>
+                    <p>${message}</p>
+                    <a href="dashboard.html" class="btn btn-primary" style="margin-top: 1rem;">Retour au dashboard</a>
+                </div>
+            `;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'Date inconnue';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('fr-FR', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+        }
+
+        function getRelevanceBadge(score) {
+            if (!score || score === 0) return '';
+            const percent = score * 20;
+            let badgeClass = 'badge-relevance-low';
+            if (score >= 4) badgeClass = 'badge-relevance-high';
+            else if (score >= 3) badgeClass = 'badge-relevance-medium';
+            return `<span class="badge ${badgeClass}">${percent}% Pertinence</span>`;
+        }
+
+        function getSentimentBadge(sentiment) {
+            if (!sentiment) return '';
+            const sentimentMap = {
+                'positive': { class: 'badge-sentiment-positive', label: 'Positif' },
+                'neutral': { class: 'badge-sentiment-neutral', label: 'Neutre' },
+                'negative': { class: 'badge-sentiment-negative', label: 'Négatif' }
+            };
+            const config = sentimentMap[sentiment.toLowerCase()] || sentimentMap['neutral'];
+            return `<span class="badge ${config.class}">${config.label}</span>`;
+        }
+
+        function renderArticle() {
+            document.title = `Kairos - ${article.title}`;
+
+            const tags = article.tags || [];
+            const tagsHtml = tags.length > 0 ? `
+                <div class="tags-section">
+                    <h3>Tags</h3>
+                    <div class="tags-list">
+                        ${tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    </div>
+                </div>
+            ` : '';
+
+            const contentHtml = article.content || article.markdown_content || article.raw_content;
+            const contentSection = contentHtml ? `
+                <div class="content-section">
+                    <h3>Contenu</h3>
+                    <div class="article-content">
+                        ${formatContent(contentHtml)}
+                    </div>
+                </div>
+            ` : `
+                <div class="content-section">
+                    <h3>Contenu</h3>
+                    <div class="no-content">
+                        Le contenu complet n'est pas disponible.
+                        <a href="${article.url}" target="_blank" class="topic-link">Lire sur le site source</a>
+                    </div>
+                </div>
+            `;
+
+            const summarySection = article.summary ? `
+                <div class="summary-section">
+                    <h3>Résumé IA</h3>
+                    <p class="summary-text">${article.summary}</p>
+                </div>
+            ` : '';
+
+            const topicHtml = topic ? `<span><a href="dashboard.html?topic=${topic.id}" class="topic-link">${topic.topic_name}</a></span>` : '';
+
+            document.getElementById('articleContent').innerHTML = `
+                <article>
+                    <header class="article-header">
+                        <div class="article-source">${article.source || 'Source inconnue'}</div>
+                        <h1 class="article-title">${article.title}</h1>
+
+                        <div class="article-meta">
+                            <span>${formatDate(article.published_date || article.created_at)}</span>
+                            ${topicHtml}
+                        </div>
+
+                        <div class="badges">
+                            ${getRelevanceBadge(article.relevance_score)}
+                            ${getSentimentBadge(article.sentiment)}
+                        </div>
+
+                        <div class="article-actions">
+                            <a href="${article.url}" target="_blank" class="action-btn primary">
+                                Lire l'article original &rarr;
+                            </a>
+                            <button class="action-btn ${article.bookmarked ? 'active' : ''}" onclick="toggleBookmark()">
+                                ${article.bookmarked ? '★ Favori' : '☆ Ajouter aux favoris'}
+                            </button>
+                            <button class="action-btn" onclick="shareArticle()">
+                                Partager
+                            </button>
+                        </div>
+                    </header>
+
+                    ${summarySection}
+                    ${tagsHtml}
+                    ${contentSection}
+                </article>
+            `;
+        }
+
+        function formatContent(content) {
+            if (!content) return '';
+            // Simple markdown-like formatting
+            return content
+                .split('\n\n')
+                .map(p => `<p>${p.trim()}</p>`)
+                .join('');
+        }
+
+        async function toggleBookmark() {
+            if (!article) return;
+
+            const bookmarkBtn = document.querySelector('.action-btn:nth-child(2)');
+            bookmarkBtn.classList.add('loading');
+
+            try {
+                const newValue = !article.bookmarked;
+                const { error } = await supabase
+                    .from('articles')
+                    .update({ bookmarked: newValue })
+                    .eq('id', article.id);
+
+                if (error) throw error;
+
+                article.bookmarked = newValue;
+                renderArticle();
+            } catch (error) {
+                console.error('Error toggling bookmark:', error);
+                Toast.apiError(error, 'Erreur lors de la mise à jour');
+                bookmarkBtn.classList.remove('loading');
+            }
+        }
+
+        function shareArticle() {
+            if (navigator.share) {
+                navigator.share({
+                    title: article.title,
+                    url: article.url
+                });
+            } else {
+                // Fallback: copy to clipboard
+                navigator.clipboard.writeText(article.url).then(() => {
+                    Toast.success('Lien copié dans le presse-papiers');
+                }).catch(() => {
+                    Toast.error('Impossible de copier le lien');
+                });
+            }
+        }
+
+        // Initialize
+        checkAuth().then(session => {
+            if (session) {
+                fetchArticle();
+            }
+        });
+    </script>
+</body>
+
+</html>

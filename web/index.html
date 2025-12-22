@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kairos - Veille Intelligence</title>
+    <!-- Fonts: Merriweather (Serif) & Inter (Sans) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="theme.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <style>
+        /* Home Specific Styles overriding defaults if needed */
+        .hero {
+            text-align: center;
+            padding: 6rem 1rem 4rem 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            letter-spacing: -1px;
+        }
+
+        .hero p {
+            font-size: 1.4rem;
+            color: var(--text-secondary);
+            font-weight: 300;
+            line-height: 1.6;
+        }
+
+        .hero-tagline {
+            font-family: var(--font-heading);
+            font-style: italic;
+            font-size: 1.1rem;
+            margin-top: 1rem;
+            opacity: 0.8;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            max-width: 1000px;
+            margin: 0 auto 4rem auto;
+            padding: 0 2rem;
+        }
+
+        .action-card {
+            background: #ffffff;
+            padding: 3rem 2rem;
+            border-radius: var(--radius-md);
+            text-align: center;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            border: 1px solid #edf2f4;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+        }
+
+        .action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+            border-color: var(--primary-color);
+        }
+
+        .icon-circle {
+            width: 80px;
+            height: 80px;
+            background-color: #f7f9fa;
+            /* Very subtle grey */
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            transition: background 0.3s;
+        }
+
+        .action-card:hover .icon-circle {
+            background-color: var(--text-primary);
+            color: white;
+        }
+
+        .action-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .action-card p {
+            color: var(--text-secondary);
+            margin-bottom: 0;
+            font-size: 1rem;
+        }
+
+        .context-section {
+            background-color: #ffffff;
+            border-top: 1px solid #eaeaea;
+            padding: 5rem 2rem;
+            text-align: center;
+        }
+
+        .context-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 3rem;
+            max-width: 900px;
+            margin: 3rem auto 0 auto;
+        }
+
+        .context-item {
+            text-align: left;
+        }
+
+        .context-item h4 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .context-item p {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        .stats-stripe {
+            display: flex;
+            justify-content: center;
+            gap: 4rem;
+            padding: 2rem;
+            border-bottom: 1px solid #eaeaea;
+            margin-bottom: 2rem;
+            color: var(--text-secondary);
+            font-family: var(--font-heading);
+            font-size: 0.9rem;
+        }
+
+        .stat-val {
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            display: inline-block;
+            min-width: 20px;
+        }
+
+        .stat-val.loading {
+            color: transparent;
+            background: linear-gradient(90deg, #e8e8e8 25%, #ddd 50%, #e8e8e8 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-email {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .logout-btn,
+        .login-btn {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid #ddd;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .logout-btn:hover,
+        .login-btn:hover {
+            background: var(--text-primary);
+            color: white;
+            border-color: var(--text-primary);
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <a href="index.html" class="logo">
+            <span>🕐</span> Kairos
+        </a>
+        <nav class="nav-links">
+            <a href="index.html" class="active">Accueil</a>
+            <a href="topic-setup.html">Créer un Topic</a>
+            <a href="dashboard.html">Dashboard</a>
+        </nav>
+        <div class="user-menu" id="userMenu">
+            <!-- Dynamically populated -->
+        </div>
+        <button class="theme-toggle" id="themeToggle" aria-label="Changer de thème" title="Mode sombre/clair">
+            <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+        </button>
+    </header>
+
+    <div class="stats-stripe">
+        <div><span class="stat-val loading" id="topicsCount">--</span> Topics</div>
+        <div><span class="stat-val loading" id="articlesCount">--</span> Articles</div>
+        <div><span class="stat-val loading" id="unreadCount">--</span> Non lus</div>
+    </div>
+
+    <section class="hero">
+        <h1>Veille Intelligente Automatisée</h1>
+        <p>Une approche sereine de l'information. Kairos sélectionne et analyse l'essentiel pour vous.</p>
+        <p class="hero-tagline">« Le moment opportun »</p>
+    </section>
+
+    <!-- Main Actions -->
+    <div class="dashboard-grid">
+        <a href="topic-setup.html" class="action-card">
+            <div class="icon-circle">🎯</div>
+            <h3>Définir un sujet</h3>
+            <p>Créez de nouveaux axes de veille et laissez l'algorithme identifier les meilleures sources.</p>
+        </a>
+
+        <a href="dashboard.html" class="action-card">
+            <div class="icon-circle">📰</div>
+            <h3>Lire les articles</h3>
+            <p>Accédez à votre flux d'actualités filtré, résumé et organisé par pertinence.</p>
+        </a>
+    </div>
+
+    <!-- Context / Info -->
+    <section class="context-section">
+        <div style="font-family: var(--font-heading); font-style: italic; color: var(--text-secondary);">Architecture du
+            système</div>
+
+        <div class="context-grid">
+            <div class="context-item">
+                <h4>🤖 Intelligence Artificielle</h4>
+                <p>Analyse sémantique via Gemma 3 (HuggingFace). Résumé automatique et classification sans fuite de
+                    données.</p>
+            </div>
+
+            <div class="context-item">
+                <h4>⚡ Automatisation n8n</h4>
+                <p>Orchestration des flux RSS toutes les heures. Déduplication et nettoyage du contenu avant analyse.
+                </p>
+            </div>
+
+            <div class="context-item">
+                <h4>🗄️ Stockage Supabase</h4>
+                <p>Base de données PostgreSQL sécurisée avec authentification utilisateur pour le stockage pérenne.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer style="text-align: center; padding: 2rem; color: #a0a0a0; font-size: 0.85rem;">
+        Kairos v2.0 • Design Intemporel
+    </footer>
+
+    <script>
+        // Initialize Supabase client
+        const { url, anonKey, options } = window.KairosConfig.getSupabaseConfig();
+        const supabase = window.supabase.createClient(url, anonKey, options);
+
+        // Check auth state and update UI
+        async function updateAuthUI() {
+            const { data: { session } } = await supabase.auth.getSession();
+            const userMenu = document.getElementById('userMenu');
+
+            if (session) {
+                userMenu.innerHTML = `
+                    <span class="user-email">${session.user.email}</span>
+                    <button class="logout-btn" onclick="handleLogout()">Déconnexion</button>
+                `;
+            } else {
+                userMenu.innerHTML = `
+                    <a href="login.html" class="login-btn">Se connecter</a>
+                `;
+            }
+        }
+
+        async function handleLogout() {
+            await supabase.auth.signOut();
+            updateAuthUI();
+        }
+
+        async function loadStats() {
+            const topicsEl = document.getElementById('topicsCount');
+            const articlesEl = document.getElementById('articlesCount');
+            const unreadEl = document.getElementById('unreadCount');
+
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+
+                if (!session) {
+                    // Show demo stats for non-logged users
+                    topicsEl.classList.remove('loading');
+                    articlesEl.classList.remove('loading');
+                    unreadEl.classList.remove('loading');
+                    topicsEl.textContent = '-';
+                    articlesEl.textContent = '-';
+                    unreadEl.textContent = '-';
+                    return;
+                }
+
+                // Fetch stats for logged-in users
+                const [topicsRes, articlesRes] = await Promise.all([
+                    supabase.from('topics').select('id').eq('active', true),
+                    supabase.from('articles').select('id,read_status')
+                ]);
+
+                const topics = topicsRes.data || [];
+                const articles = articlesRes.data || [];
+
+                // Remove loading state and update values
+                topicsEl.classList.remove('loading');
+                articlesEl.classList.remove('loading');
+                unreadEl.classList.remove('loading');
+
+                topicsEl.textContent = topics.length;
+                articlesEl.textContent = articles.length;
+                unreadEl.textContent = articles.filter(a => !a.read_status).length;
+            } catch (e) {
+                topicsEl.classList.remove('loading');
+                articlesEl.classList.remove('loading');
+                unreadEl.classList.remove('loading');
+                topicsEl.textContent = '-';
+                articlesEl.textContent = '-';
+                unreadEl.textContent = '-';
+            }
+        }
+
+        // Initialize
+        updateAuthUI();
+        loadStats();
+    </script>
+</body>
+
+</html>

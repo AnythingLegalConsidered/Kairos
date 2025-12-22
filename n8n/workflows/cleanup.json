@@ -1,0 +1,244 @@
+{
+  "name": "Kairos Cleanup",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "triggerAtHour": 3
+            }
+          ]
+        }
+      },
+      "id": "trigger-cron",
+      "name": "Chaque jour a 3h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://kairos-rest:3000/rpc/cleanup_old_articles",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"days_to_keep\": 30\n}",
+        "options": {}
+      },
+      "id": "cleanup-articles",
+      "name": "Supprimer vieux articles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Recuperer le nombre d'articles supprimes\nconst result = $input.first().json;\nconst deletedCount = result || 0;\n\nconst now = new Date().toISOString();\n\nreturn [{\n  json: {\n    success: true,\n    deleted_count: deletedCount,\n    executed_at: now,\n    message: `Cleanup termine: ${deletedCount} article(s) supprime(s)`\n  }\n}];"
+      },
+      "id": "format-result",
+      "name": "Formater Resultat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "http://kairos-rest:3000/articles?read_status=eq.archived&created_at=lt.{{ new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString() }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cleanup-archived",
+      "name": "Supprimer archives > 90j",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compter les articles archives supprimes\nconst result = $input.first().json;\nlet archivedDeleted = 0;\n\nif (Array.isArray(result)) {\n  archivedDeleted = result.length;\n}\n\nreturn [{\n  json: {\n    archived_deleted: archivedDeleted,\n    message: `${archivedDeleted} article(s) archive(s) > 90 jours supprime(s)`\n  }\n}];"
+      },
+      "id": "format-archived",
+      "name": "Formater Archives",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 200]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge-results",
+      "name": "Combiner Resultats",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [660, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combiner les resultats des deux cleanups\nconst items = $input.all();\n\nlet regularDeleted = 0;\nlet archivedDeleted = 0;\n\nfor (const item of items) {\n  if (item.json.deleted_count !== undefined) {\n    regularDeleted = item.json.deleted_count;\n  }\n  if (item.json.archived_deleted !== undefined) {\n    archivedDeleted = item.json.archived_deleted;\n  }\n}\n\nconst now = new Date().toISOString();\n\nreturn [{\n  json: {\n    success: true,\n    regular_articles_deleted: regularDeleted,\n    archived_articles_deleted: archivedDeleted,\n    total_deleted: regularDeleted + archivedDeleted,\n    executed_at: now,\n    summary: `Cleanup termine: ${regularDeleted} article(s) > 30j + ${archivedDeleted} archive(s) > 90j supprimes`\n  }\n}];"
+      },
+      "id": "final-summary",
+      "name": "Resume Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 100]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cleanup",
+        "options": {}
+      },
+      "id": "trigger-webhook",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "kairos-cleanup"
+    }
+  ],
+  "connections": {
+    "Chaque jour a 3h": {
+      "main": [
+        [
+          {
+            "node": "Supprimer vieux articles",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supprimer archives > 90j",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Supprimer vieux articles",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supprimer archives > 90j",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supprimer vieux articles": {
+      "main": [
+        [
+          {
+            "node": "Formater Resultat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supprimer archives > 90j": {
+      "main": [
+        [
+          {
+            "node": "Formater Archives",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formater Resultat": {
+      "main": [
+        [
+          {
+            "node": "Combiner Resultats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formater Archives": {
+      "main": [
+        [
+          {
+            "node": "Combiner Resultats",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combiner Resultats": {
+      "main": [
+        [
+          {
+            "node": "Resume Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "kairos",
+      "createdAt": "2024-12-21T00:00:00.000Z",
+      "updatedAt": "2024-12-21T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 2,
+  "updatedAt": "2024-12-21T00:00:00.000Z",
+  "versionId": "1"
+}

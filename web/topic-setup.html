@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kairos - Nouveau Topic</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="theme.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="toast.js"></script>
+    <style>
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-email {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .logout-btn,
+        .login-btn {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid #ddd;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .logout-btn:hover,
+        .login-btn:hover {
+            background: var(--text-primary);
+            color: white;
+            border-color: var(--text-primary);
+        }
+
+        .topic-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .topic-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .feed-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .feed-item {
+            display: flex;
+            align-items: center;
+            padding: 1.25rem;
+            background: #fdfdfd;
+            border: 1px solid #e1e4e8;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .feed-item:hover {
+            border-color: var(--primary-color);
+            transform: translateX(4px);
+        }
+
+        .feed-item.selected {
+            background-color: #f0f4f8;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 1px var(--primary-color) inset;
+        }
+
+        .feed-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 1rem;
+            accent-color: var(--primary-color);
+        }
+
+        .feed-info {
+            flex: 1;
+        }
+
+        .feed-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.2rem;
+        }
+
+        .feed-url {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-family: monospace;
+        }
+
+        .feed-type {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            background: #edf2f7;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        #proposals {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        #proposals.visible {
+            display: block;
+        }
+
+        .button-row {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+            border-top: 1px solid #eee;
+            padding-top: 1.5rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        /* Dual search bars */
+        .dual-search {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .search-box {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+
+        .search-box label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        .search-box .lang-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            color: white;
+        }
+
+        .search-box.fr .lang-badge {
+            background: #2c3e50;
+        }
+
+        .search-box.en .lang-badge {
+            background: var(--primary-color);
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 2px solid #e1e4e8;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        .sync-icon {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* ========== CLEAN ACCORDION CATEGORY DESIGN ========== */
+
+        /* Category Tabs Row */
+        .category-tabs {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem 1.5rem;
+            background: #faf9f7;
+            border-bottom: 1px solid #e8e4dc;
+            flex-wrap: wrap;
+        }
+
+        .category-tab {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1rem;
+            background: white;
+            border: 1px solid #e8e4dc;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+            color: #5a554d;
+        }
+
+        .category-tab:hover {
+            border-color: #c9a961;
+            background: #fdfcfa;
+        }
+
+        .category-tab.active {
+            background: #2c3e50;
+            border-color: #2c3e50;
+            color: white;
+        }
+
+        .category-tab .tab-icon {
+            font-size: 1rem;
+        }
+
+        .category-tab.active .tab-icon {
+            filter: grayscale(1) brightness(10);
+        }
+
+        /* Sources Panel (accordion content) */
+        .sources-panel {
+            background: white;
+            border: 1px solid #e8e4dc;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            padding: 1.5rem;
+            display: none;
+        }
+
+        .sources-panel.active {
+            display: block;
+        }
+
+        /* Two column layout for sources */
+        .sources-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .sources-column h4 {
+            font-family: 'Merriweather', serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #5a554d;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e8e4dc;
+        }
+
+        .sources-column h4 .lang-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        .sources-column h4 .lang-badge.fr {
+            background: #2c3e50;
+            color: white;
+        }
+
+        .sources-column h4 .lang-badge.en {
+            background: #c9a961;
+            color: white;
+        }
+
+        /* Simple source list */
+        .source-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .source-list li {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .source-list li:hover {
+            background: #f5f3ef;
+        }
+
+        .source-list li.selected {
+            background: rgba(201, 169, 97, 0.1);
+        }
+
+        .source-list input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #c9a961;
+            cursor: pointer;
+        }
+
+        .source-list .source-name {
+            font-size: 0.9rem;
+            color: #3d3d3d;
+        }
+
+        .source-list li.selected .source-name {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .source-list .empty-message {
+            color: #999;
+            font-style: italic;
+            padding: 0.5rem 0;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e8e4dc;
+        }
+
+        .quick-actions .btn-secondary {
+            font-size: 0.8rem;
+            padding: 0.4rem 0.8rem;
+        }
+
+        /* Manual input section */
+        .manual-input-section {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: #faf9f7;
+            border-radius: 8px;
+            border: 1px solid #e8e4dc;
+        }
+
+        .manual-input-section label {
+            display: block;
+            font-size: 0.85rem;
+            color: #5a554d;
+            margin-bottom: 0.5rem;
+        }
+
+        .manual-input-section input {
+            width: 100%;
+            padding: 0.6rem;
+            border: 1px solid #d4cfc4;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .manual-input-section input:focus {
+            outline: none;
+            border-color: #c9a961;
+        }
+
+        /* Form buttons at bottom */
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e8e4dc;
+        }
+
+        /* ========== DARK MODE OVERRIDES ========== */
+        [data-theme="dark"] .search-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+        }
+
+        [data-theme="dark"] .search-box label {
+            color: var(--text-secondary);
+        }
+
+        [data-theme="dark"] .search-box input {
+            background: var(--bg-color);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .search-box input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        [data-theme="dark"] .category-tabs {
+            background: var(--bg-color);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .category-tab {
+            background: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        [data-theme="dark"] .category-tab:hover {
+            border-color: var(--primary-color);
+            background: var(--card-bg);
+        }
+
+        [data-theme="dark"] .category-tab.active {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        [data-theme="dark"] .sources-panel {
+            background: var(--card-bg);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .sources-column h4 {
+            color: var(--text-secondary);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .source-list li {
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .source-list li:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        [data-theme="dark"] .source-list li.selected {
+            background: rgba(124, 157, 184, 0.15);
+        }
+
+        [data-theme="dark"] .source-list .source-name {
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .quick-actions {
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .manual-input-section {
+            background: var(--bg-color);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .manual-input-section label {
+            color: var(--text-secondary);
+        }
+
+        [data-theme="dark"] .manual-input-section input {
+            background: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .form-actions {
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .feed-item {
+            background: var(--card-bg);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .feed-item:hover {
+            border-color: var(--primary-color);
+        }
+
+        [data-theme="dark"] .feed-item.selected {
+            background: rgba(124, 157, 184, 0.1);
+        }
+
+        [data-theme="dark"] .feed-type {
+            background: var(--bg-color);
+            color: var(--text-secondary);
+        }
+
+        [data-theme="dark"] .sync-icon {
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <a href="index.html" class="logo">
+            <span>🕐</span> Kairos
+        </a>
+        <nav class="nav-links">
+            <a href="index.html">Accueil</a>
+            <a href="topic-setup.html" class="active">Créer un Topic</a>
+            <a href="dashboard.html">Dashboard</a>
+        </nav>
+        <div class="user-menu" id="userMenu">
+            <!-- Dynamically populated -->
+        </div>
+        <button class="theme-toggle" id="themeToggle" aria-label="Changer de thème" title="Mode sombre/clair">
+            <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+        </button>
+    </header>
+
+    <div class="container">
+        <div class="topic-header">
+            <h1>Définir votre sujet de veille</h1>
+            <p style="color: var(--text-secondary);">Ajoutez un nouveau sujet pour commencer à recevoir des articles
+                pertinents.</p>
+        </div>
+
+        <!-- Step 1: Enter Topic (Dual Search) -->
+        <div class="card" id="step1">
+            <h2 style="font-size: 1.25rem; margin-bottom: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 1rem;">
+                1. Votre Sujet</h2>
+
+            <div class="dual-search">
+                <div class="search-box fr">
+                    <label><span class="lang-badge">FR</span> Recherche en Français</label>
+                    <input type="text" id="topicFR" placeholder="Ex: Fusion nucléaire, Cybersécurité..."
+                        oninput="translateFRtoEN()">
+                </div>
+
+                <div class="sync-icon">⇄</div>
+
+                <div class="search-box en">
+                    <label><span class="lang-badge">EN</span> Search in English</label>
+                    <input type="text" id="topicEN" placeholder="Ex: Nuclear fusion, Cybersecurity..."
+                        oninput="translateENtoFR()">
+                </div>
+            </div>
+
+            <!-- AI Translation Button -->
+            <div style="text-align: center; margin-top: 1rem;">
+                <button class="btn btn-secondary" id="aiTranslateBtn" onclick="translateWithAI()"
+                    style="font-size: 0.85rem;">
+                    🤖 Traduire avec Gemma3
+                </button>
+                <span id="aiTranslateStatus"
+                    style="margin-left: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);"></span>
+            </div>
+
+            <div class="input-group" style="margin-top: 1.5rem;">
+                <input type="text" id="description" placeholder="Description optionnelle (pour le contexte IA)"
+                    style="flex: 1;">
+                <button class="btn btn-primary" onclick="generateProposals()">🔍 Rechercher des sources</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Select Feeds -->
+        <div class="card" id="proposals" style="padding: 0; overflow: hidden;">
+            <div style="padding: 1.5rem 1.5rem 1rem;">
+                <h2 style="font-size: 1.25rem; margin-bottom: 0.5rem;">2. Sources recommandées</h2>
+                <p style="font-size: 0.9rem; color: var(--text-secondary); margin: 0;">
+                    Sélectionnez les flux RSS à surveiller pour votre veille.
+                </p>
+            </div>
+
+            <!-- Category Tabs -->
+            <div class="category-tabs">
+                <div class="category-tab active" onclick="showCategory('search')" data-category="search">
+                    <span class="tab-icon">🔍</span> Recherche
+                </div>
+                <div class="category-tab" onclick="showCategory('tech')" data-category="tech">
+                    <span class="tab-icon">💻</span> Tech
+                </div>
+                <div class="category-tab" onclick="showCategory('science')" data-category="science">
+                    <span class="tab-icon">🔬</span> Science
+                </div>
+                <div class="category-tab" onclick="showCategory('economy')" data-category="economy">
+                    <span class="tab-icon">💰</span> Économie
+                </div>
+                <div class="category-tab" onclick="showCategory('environment')" data-category="environment">
+                    <span class="tab-icon">🌿</span> Environnement
+                </div>
+                <div class="category-tab" onclick="showCategory('community')" data-category="community">
+                    <span class="tab-icon">💬</span> Communautés
+                </div>
+            </div>
+
+            <!-- Sources Panel (accordion content) -->
+            <div class="sources-panel active">
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button class="btn btn-secondary" onclick="selectAllLang('fr')">✓ Tout FR</button>
+                    <button class="btn btn-secondary" onclick="selectAllLang('en')">✓ Tout EN</button>
+                    <button class="btn btn-secondary" onclick="deselectAll()">✕ Désélectionner</button>
+                </div>
+
+                <!-- Sources Grid -->
+                <div id="categoryContents">
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- Manual Input -->
+                <div class="manual-input-section">
+                    <label>Ajouter une source manuelle (optionnel)</label>
+                    <input type="text" id="customFeed" placeholder="https://example.com/rss...">
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button class="btn btn-secondary" onclick="resetForm()">Annuler</button>
+                    <button class="btn btn-primary" onclick="saveSelection()" id="saveBtn">
+                        ✓ Créer le Topic
+                    </button>
+                </div>
+                <div id="result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('=== Topic Setup Init ===');
+
+            // Initialize Supabase client
+            const { url, anonKey, options } = window.KairosConfig.getSupabaseConfig();
+            const supabase = window.supabase.createClient(url, anonKey, options);
+
+            const N8N_URL = 'http://localhost:5678';
+            let currentProposals = [];
+            let currentCategory = 'search';
+            let currentUser = null;
+
+            // Make functions global for onclick handlers
+            window.translateWithAI = translateWithAI;
+            window.generateProposals = generateProposals;
+            window.showCategory = showCategory;
+            window.toggleFeed = toggleFeed;
+            window.selectAllLang = selectAllLang;
+            window.deselectAll = deselectAll;
+            window.saveSelection = saveSelection;
+            window.resetForm = resetForm;
+            window.handleLogout = handleLogout;
+
+            // Check authentication and update UI
+            async function initAuth() {
+                try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const userMenu = document.getElementById('userMenu');
+
+                    if (session) {
+                        currentUser = session.user;
+                        userMenu.innerHTML = `
+                        <span class="user-email">${session.user.email}</span>
+                        <button class="logout-btn" onclick="handleLogout()">Déconnexion</button>
+                    `;
+                    } else {
+                        // Show login link instead of immediate redirect
+                        userMenu.innerHTML = `<a href="login.html" class="login-link">Connexion</a>`;
+                        console.log('Not authenticated - login required to save topics');
+                    }
+                } catch (error) {
+                    console.error('Auth error:', error);
+                }
+            }
+
+            async function handleLogout() {
+                await supabase.auth.signOut();
+                window.location.href = 'index.html';
+            }
+
+            // Initialize on page load
+            initAuth();
+
+            // ========== TRANSLATIONS ==========
+            const frToEn = {
+                'intelligence artificielle': 'artificial intelligence', 'ia': 'AI',
+                'apprentissage automatique': 'machine learning', 'cybersécurité': 'cybersecurity',
+                'fusion nucléaire': 'nuclear fusion', 'énergie nucléaire': 'nuclear energy',
+                'blockchain': 'blockchain', 'cryptomonnaie': 'cryptocurrency',
+                'développement web': 'web development', 'programmation': 'programming',
+                'robotique': 'robotics', 'voiture autonome': 'self-driving car',
+                'changement climatique': 'climate change', 'réchauffement climatique': 'global warming',
+                'environnement': 'environment', 'écologie': 'ecology',
+                'développement durable': 'sustainable development', 'énergie renouvelable': 'renewable energy',
+                'politique': 'politics', 'géopolitique': 'geopolitics',
+                'économie': 'economy', 'finance': 'finance',
+                'santé': 'health', 'médecine': 'medicine',
+                'éducation': 'education', 'culture': 'culture',
+                'sport': 'sports', 'football': 'soccer',
+                'agriculture': 'agriculture', 'alimentation': 'food',
+                'transport': 'transportation', 'innovation': 'innovation',
+            };
+
+            // Create reverse dictionary
+            const enToFr = Object.fromEntries(Object.entries(frToEn).map(([k, v]) => [v.toLowerCase(), k]));
+
+            function translateFRtoEN() {
+                const frValue = document.getElementById('topicFR').value;
+                const translated = translateText(frValue, frToEn);
+                document.getElementById('topicEN').value = translated;
+            }
+
+            function translateENtoFR() {
+                const enValue = document.getElementById('topicEN').value;
+                const translated = translateText(enValue, enToFr);
+                document.getElementById('topicFR').value = translated;
+            }
+
+            function translateText(text, dict) {
+                let result = text.toLowerCase();
+                // Try exact match
+                if (dict[result]) return dict[result];
+                // Try partial replacement
+                for (const [from, to] of Object.entries(dict)) {
+                    if (result.includes(from)) {
+                        result = result.replace(from, to);
+                    }
+                }
+                return result === text.toLowerCase() ? text : result;
+            }
+
+            // ========== AI TRANSLATION (Ollama Local) ==========
+            async function translateWithAI() {
+                const topicFR = document.getElementById('topicFR').value.trim();
+                const topicEN = document.getElementById('topicEN').value.trim();
+
+                if (!topicFR && !topicEN) {
+                    Toast.validation('Veuillez entrer un texte à traduire');
+                    return;
+                }
+
+                const btn = document.getElementById('aiTranslateBtn');
+                const status = document.getElementById('aiTranslateStatus');
+
+                btn.disabled = true;
+                btn.textContent = '⏳ Traduction...';
+                status.textContent = '';
+
+                try {
+                    let prompt, targetField;
+                    if (topicFR && !topicEN) {
+                        prompt = `Translate this French text to English: "${topicFR}". Reply with ONLY the English translation, nothing else.`;
+                        targetField = 'topicEN';
+                    } else if (topicEN && !topicFR) {
+                        prompt = `Translate this English text to French: "${topicEN}". Reply with ONLY the French translation, nothing else.`;
+                        targetField = 'topicFR';
+                    } else {
+                        prompt = `Translate this French text to English: "${topicFR}". Reply with ONLY the English translation, nothing else.`;
+                        targetField = 'topicEN';
+                    }
+
+                    const response = await fetch('http://localhost:11434/api/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'gemma3:4b',
+                            prompt: prompt,
+                            stream: false
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Ollama non accessible - lancez: ollama run gemma3:4b');
+                    }
+
+                    const data = await response.json();
+                    const translation = data.response.trim().replace(/^["']|["']$/g, '');
+
+                    document.getElementById(targetField).value = translation;
+                    status.textContent = '✅ Traduit !';
+                    status.style.color = '#28a745';
+                    setTimeout(() => { status.textContent = ''; }, 3000);
+
+                } catch (error) {
+                    status.textContent = '❌ ' + error.message;
+                    status.style.color = '#dc3545';
+                    console.error('AI Translation error:', error);
+                }
+
+                btn.disabled = false;
+                btn.textContent = '🤖 Traduire avec Gemma3';
+            }
+
+            // ========== CATEGORY SOURCES ==========
+            // Sources basées sur la RECHERCHE du sujet (pas des flux généraux)
+            function getSourcesByCategory(topicFR, topicEN) {
+                const frEnc = encodeURIComponent(topicFR);
+                const enEnc = encodeURIComponent(topicEN);
+                // Pour Google News RSS
+                const frEncPlus = topicFR.replace(/\s+/g, '+');
+                const enEncPlus = topicEN.replace(/\s+/g, '+');
+
+                return {
+                    search: [
+                        // 🔍 Moteurs de recherche RSS - PRIORITAIRES car ciblés sur le sujet
+                        { name: `Google News FR: "${topicFR}"`, url: `https://news.google.com/rss/search?q=${frEnc}&hl=fr&gl=FR&ceid=FR:fr`, type: 'Recherche', lang: 'fr', selected: true },
+                        { name: `Google News EN: "${topicEN}"`, url: `https://news.google.com/rss/search?q=${enEnc}&hl=en&gl=US&ceid=US:en`, type: 'Search', lang: 'en', selected: true },
+                        { name: `Bing News FR: "${topicFR}"`, url: `https://www.bing.com/news/search?q=${frEnc}&format=rss`, type: 'Recherche', lang: 'fr', selected: false },
+                        { name: `Bing News EN: "${topicEN}"`, url: `https://www.bing.com/news/search?q=${enEnc}&format=rss`, type: 'Search', lang: 'en', selected: false },
+                    ],
+                    tech: [
+                        // 🇫🇷 Tech France - Recherche
+                        { name: `Numerama: "${topicFR}"`, url: `https://www.numerama.com/feed/?s=${frEnc}`, type: 'Tech FR', lang: 'fr', selected: true },
+                        { name: `Journal du Geek: "${topicFR}"`, url: `https://www.journaldugeek.com/feed/?s=${frEnc}`, type: 'Tech FR', lang: 'fr', selected: false },
+                        // 🇬🇧 Tech International - Recherche
+                        { name: `Hacker News: "${topicEN}"`, url: `https://hnrss.org/newest?q=${enEnc}`, type: 'Tech', lang: 'en', selected: true },
+                        { name: `TechCrunch: "${topicEN}"`, url: `https://techcrunch.com/tag/${topicEN.toLowerCase().replace(/\s+/g, '-')}/feed/`, type: 'Startup', lang: 'en', selected: false },
+                        { name: `Ars Technica: "${topicEN}"`, url: `https://feeds.arstechnica.com/arstechnica/search?q=${enEnc}`, type: 'Tech', lang: 'en', selected: false },
+                        { name: `The Verge: "${topicEN}"`, url: `https://www.theverge.com/rss/search?q=${enEnc}`, type: 'Tech', lang: 'en', selected: false },
+                    ],
+                    science: [
+                        // 🇫🇷 Science France
+                        { name: `Futura Sciences: "${topicFR}"`, url: `https://www.futura-sciences.com/rss/recherche.xml?q=${frEnc}`, type: 'Science FR', lang: 'fr', selected: true },
+                        { name: `Sciences et Avenir: "${topicFR}"`, url: `https://www.sciencesetavenir.fr/rss/recherche?q=${frEnc}`, type: 'Science FR', lang: 'fr', selected: false },
+                        // 🇬🇧 Science International
+                        { name: `Nature: "${topicEN}"`, url: `https://www.nature.com/search.rss?q=${enEnc}`, type: 'Research', lang: 'en', selected: true },
+                        { name: `Science Daily: "${topicEN}"`, url: `https://www.sciencedaily.com/rss/all.xml`, type: 'Science', lang: 'en', selected: false },
+                        { name: `Phys.org: "${topicEN}"`, url: `https://phys.org/rss-feed/search/?search=${enEnc}`, type: 'Science', lang: 'en', selected: false },
+                        { name: `arXiv: "${topicEN}"`, url: `https://export.arxiv.org/api/query?search_query=all:${enEnc}&sortBy=submittedDate&sortOrder=descending`, type: 'Research', lang: 'en', selected: false },
+                    ],
+                    economy: [
+                        // 🇫🇷 Économie France
+                        { name: `Les Échos: "${topicFR}"`, url: `https://www.lesechos.fr/rss/recherche?q=${frEnc}`, type: 'Économie', lang: 'fr', selected: true },
+                        { name: `La Tribune: "${topicFR}"`, url: `https://www.latribune.fr/recherche.html?q=${frEnc}&output=rss`, type: 'Économie', lang: 'fr', selected: false },
+                        // 🇬🇧 Economy International
+                        { name: `Financial Times: "${topicEN}"`, url: `https://www.ft.com/search?q=${enEnc}&format=rss`, type: 'Finance', lang: 'en', selected: true },
+                        { name: `Bloomberg: "${topicEN}"`, url: `https://news.google.com/rss/search?q=${enEnc}+site:bloomberg.com&hl=en`, type: 'Finance', lang: 'en', selected: false },
+                        { name: `Reuters: "${topicEN}"`, url: `https://news.google.com/rss/search?q=${enEnc}+site:reuters.com&hl=en`, type: 'Agence', lang: 'en', selected: false },
+                    ],
+                    environment: [
+                        // 🇫🇷 Environnement France
+                        { name: `Reporterre: "${topicFR}"`, url: `https://reporterre.net/spip.php?page=backend-recherche&recherche=${frEnc}`, type: 'Écologie', lang: 'fr', selected: true },
+                        { name: `Actu Environnement: "${topicFR}"`, url: `https://www.actu-environnement.com/recherche.php?words=${frEnc}&output=rss`, type: 'Pro', lang: 'fr', selected: false },
+                        // 🇬🇧 Environment International
+                        { name: `Carbon Brief: "${topicEN}"`, url: `https://www.carbonbrief.org/?s=${enEnc}&feed=rss2`, type: 'Climate', lang: 'en', selected: true },
+                        { name: `Inside Climate: "${topicEN}"`, url: `https://insideclimatenews.org/?s=${enEnc}&feed=rss2`, type: 'Climate', lang: 'en', selected: false },
+                    ],
+                    community: [
+                        // 🗣️ Communautés - Recherche
+                        { name: `Reddit: "${topicEN}"`, url: `https://www.reddit.com/search.rss?q=${enEnc}&sort=new`, type: 'Community', lang: 'en', selected: true },
+                        { name: `Reddit FR: "${topicFR}"`, url: `https://www.reddit.com/search.rss?q=${frEnc}&sort=new`, type: 'Community', lang: 'fr', selected: false },
+                        { name: `Medium: "${topicEN}"`, url: `https://medium.com/feed/tag/${topicEN.toLowerCase().replace(/\s+/g, '-')}`, type: 'Blogs', lang: 'en', selected: false },
+                        { name: `Twitter/X: "${topicEN}"`, url: `https://nitter.net/search/rss?f=tweets&q=${enEnc}`, type: 'Social', lang: 'en', selected: false },
+                        { name: `YouTube: "${topicEN}"`, url: `https://www.youtube.com/feeds/videos.xml?search_query=${enEnc}`, type: 'Video', lang: 'en', selected: false },
+                    ]
+                };
+            }
+
+            // ========== GENERATE PROPOSALS ==========
+            function generateProposals() {
+                const topicFR = document.getElementById('topicFR').value.trim();
+                const topicEN = document.getElementById('topicEN').value.trim();
+                const searchBtn = document.querySelector('#step1 .btn-primary');
+
+                if (!topicFR && !topicEN) {
+                    Toast.validation('Veuillez entrer un sujet (français ou anglais)');
+                    return;
+                }
+
+                // Show loading state
+                searchBtn.classList.add('loading');
+                searchBtn.disabled = true;
+
+                // Simulate a small delay for UX feedback
+                setTimeout(() => {
+                    // Fill empty field
+                    if (!topicEN && topicFR) translateFRtoEN();
+                    if (!topicFR && topicEN) translateENtoFR();
+
+                    const finalFR = document.getElementById('topicFR').value.trim() || topicEN;
+                    const finalEN = document.getElementById('topicEN').value.trim() || topicFR;
+
+                    // Generate all sources
+                    const sourcesByCategory = getSourcesByCategory(finalFR, finalEN);
+                    currentProposals = Object.values(sourcesByCategory).flat();
+
+                    // Show proposals section
+                    document.getElementById('proposals').classList.add('visible');
+
+                    // Render first category (Recherche by default)
+                    showCategory('search');
+
+                    // Remove loading state
+                    searchBtn.classList.remove('loading');
+                    searchBtn.disabled = false;
+                }, 300);
+            }
+
+            // ========== CATEGORY ICONS ==========
+            function showCategory(category) {
+                currentCategory = category;
+
+                // Update icon styles
+                // Update tab styles
+                document.querySelectorAll('.category-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                    if (tab.dataset.category === category) {
+                        tab.classList.add('active');
+                    }
+                });
+
+                // Get sources for this category
+                const topicFR = document.getElementById('topicFR').value.trim() || 'topic';
+                const topicEN = document.getElementById('topicEN').value.trim() || 'topic';
+                const sourcesByCategory = getSourcesByCategory(topicFR, topicEN);
+                const sources = sourcesByCategory[category] || [];
+
+                // Update currentProposals selection state
+                sources.forEach(src => {
+                    const existing = currentProposals.find(p => p.url === src.url);
+                    if (existing) src.selected = existing.selected;
+                });
+
+                renderCategoryContent(sources, category);
+            }
+
+            function renderCategoryContent(sources, category) {
+                const container = document.getElementById('categoryContents');
+                const frSources = sources.filter(s => s.lang === 'fr');
+                const enSources = sources.filter(s => s.lang === 'en');
+
+                // Render simple list item
+                const renderSource = (src) => {
+                    const globalIdx = currentProposals.findIndex(p => p.url === src.url);
+                    return `
+                    <li class="${src.selected ? 'selected' : ''}" onclick="toggleFeed(${globalIdx})">
+                        <input type="checkbox" ${src.selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleFeed(${globalIdx})">
+                        <span class="source-name">${src.name}</span>
+                    </li>
+                `;
+                };
+
+                container.innerHTML = `
+                <div class="sources-grid">
+                    <div class="sources-column">
+                        <h4><span class="lang-badge fr">FR</span> Sources Françaises</h4>
+                        <ul class="source-list">
+                            ${frSources.length ? frSources.map(renderSource).join('') : '<li class="empty-message">Aucune source disponible</li>'}
+                        </ul>
+                    </div>
+                    <div class="sources-column">
+                        <h4><span class="lang-badge en">EN</span> English Sources</h4>
+                        <ul class="source-list">
+                            ${enSources.length ? enSources.map(renderSource).join('') : '<li class="empty-message">No sources available</li>'}
+                        </ul>
+                    </div>
+                </div>
+            `;
+            }
+
+            // ========== ACTIONS ==========
+            function toggleFeed(index) {
+                if (index >= 0 && index < currentProposals.length) {
+                    currentProposals[index].selected = !currentProposals[index].selected;
+                    showCategory(currentCategory);
+                }
+            }
+
+            function selectAllLang(lang) {
+                currentProposals.forEach(p => { if (p.lang === lang) p.selected = true; });
+                showCategory(currentCategory);
+            }
+
+            function deselectAll() {
+                currentProposals.forEach(p => p.selected = false);
+                showCategory(currentCategory);
+            }
+
+            async function saveSelection() {
+                const topicFR = document.getElementById('topicFR').value.trim();
+                const topicEN = document.getElementById('topicEN').value.trim();
+                const description = document.getElementById('description').value.trim();
+                const customFeed = document.getElementById('customFeed').value.trim();
+
+                const selectedFeeds = currentProposals.filter(f => f.selected).map(f => f.url);
+                if (customFeed) selectedFeeds.push(customFeed);
+
+                if (selectedFeeds.length === 0) {
+                    Toast.validation('Veuillez sélectionner au moins une source');
+                    return;
+                }
+
+                const saveBtn = document.getElementById('saveBtn');
+                saveBtn.classList.add('loading');
+                saveBtn.disabled = true;
+
+                // Check if user is authenticated
+                if (!currentUser) {
+                    Toast.error('Vous devez être connecté pour créer un topic');
+                    document.getElementById('result').innerHTML = `
+                        <div style="margin-top: 1rem; padding: 1rem; background: #f8d7da; border-radius: 8px; color: #721c24;">
+                            ❌ Vous devez être connecté pour créer un topic.
+                            <br><a href="login.html" style="color: inherit; margin-top: 0.5rem; display: inline-block;">→ Se connecter</a>
+                        </div>
+                    `;
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = originalText;
+                    return;
+                }
+
+                // Create topic using Supabase client
+                // Store keywords for filtering in n8n workflow
+                const keywordsFR = topicFR ? topicFR.toLowerCase().split(/[\s,]+/).filter(k => k.length > 2) : [];
+                const keywordsEN = topicEN ? topicEN.toLowerCase().split(/[\s,]+/).filter(k => k.length > 2) : [];
+
+                try {
+                    const { data, error } = await supabase
+                        .from('topics')
+                        .insert({
+                            user_id: currentUser.id,
+                            topic_name: topicFR || topicEN,
+                            description: description || `Veille sur: ${topicFR}`,
+                            rss_feeds: selectedFeeds,
+                            keywords_fr: keywordsFR,
+                            keywords_en: keywordsEN,
+                            active: true
+                        })
+                        .select()
+                        .single();
+
+                    if (error) throw error;
+
+                    Toast.success(`Topic "${topicFR || topicEN}" créé avec ${selectedFeeds.length} sources !`);
+                    document.getElementById('result').innerHTML = `
+                    <div style="margin-top: 1rem; padding: 1rem; background: #d4edda; border-radius: 8px; color: #155724;">
+                        ✅ Topic créé avec succès !
+                        <br><a href="dashboard.html" style="color: inherit; margin-top: 0.5rem; display: inline-block;">→ Voir le dashboard</a>
+                    </div>
+                `;
+                } catch (error) {
+                    Toast.apiError(error, 'Erreur lors de la création du topic');
+                    document.getElementById('result').innerHTML = `
+                    <div style="margin-top: 1rem; padding: 1rem; background: #f8d7da; border-radius: 8px; color: #721c24;">
+                        ❌ Erreur: ${error.message}
+                    </div>
+                `;
+                } finally {
+                    saveBtn.classList.remove('loading');
+                    saveBtn.disabled = false;
+                }
+            }
+
+            function resetForm() {
+                document.getElementById('topicFR').value = '';
+                document.getElementById('topicEN').value = '';
+                document.getElementById('description').value = '';
+                document.getElementById('customFeed').value = '';
+                document.getElementById('proposals').classList.remove('visible');
+                document.getElementById('result').innerHTML = '';
+                currentProposals = [];
+            }
+
+            // Initialize on page load
+            initAuth();
+            console.log('=== Topic setup ready ===');
+        }); // End DOMContentLoaded
+    </script>
+</body>
+
+</html>

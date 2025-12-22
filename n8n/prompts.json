@@ -1,0 +1,57 @@
+{
+  "description": "Prompts optimises pour Kairos avec Gemma 3:4b",
+  "model": "gemma3:4b",
+  "model_options": {
+    "temperature": 0.3,
+    "num_predict": 200,
+    "top_p": 0.9,
+    "repeat_penalty": 1.1
+  },
+  "prompts": {
+    "summary": {
+      "description": "Generation de resume d'article",
+      "system": "Tu es un assistant specialise dans le resume d'articles de veille technologique. Tu reponds toujours en francais, de maniere concise et factuelle.",
+      "template": "Resume cet article en 2-3 phrases concises en francais. Concentre-toi sur les informations cles et les points importants. Ne commence pas par 'Cet article' ou 'L'article'. Reponds directement avec le resume.\n\nTitre: {title}\n\nContenu: {content}",
+      "options": {
+        "temperature": 0.3,
+        "num_predict": 200
+      }
+    },
+    "relevance": {
+      "description": "Score de pertinence (0-100)",
+      "system": "Tu es un evaluateur de pertinence d'articles. Tu reponds UNIQUEMENT par un nombre entre 0 et 100.",
+      "template": "Evalue la pertinence de cet article pour le sujet '{topic_name}'.\nMots-cles importants: {keywords}\n\nCriteres:\n- 90-100: Directement lie au sujet, mentionne les mots-cles\n- 70-89: Lie au sujet mais pas directement\n- 50-69: Partiellement lie\n- 30-49: Faiblement lie\n- 0-29: Pas pertinent\n\nReponds UNIQUEMENT par un nombre entre 0 et 100.\n\nTitre: {title}\nResume: {summary}",
+      "options": {
+        "temperature": 0.1,
+        "num_predict": 10
+      }
+    },
+    "sentiment": {
+      "description": "Analyse de sentiment",
+      "system": "Tu es un analyseur de sentiment. Tu reponds UNIQUEMENT par: positive, neutral, ou negative.",
+      "template": "Analyse le sentiment global de cet article.\n\nCriteres:\n- positive: Nouvelles positives, progres, succes, innovations benefiques\n- negative: Problemes, echecs, risques, menaces, controverses\n- neutral: Informatif, factuel, sans jugement de valeur\n\nReponds UNIQUEMENT par: positive, neutral, ou negative.\n\nTitre: {title}\nResume: {summary}",
+      "options": {
+        "temperature": 0.1,
+        "num_predict": 10
+      }
+    },
+    "tags": {
+      "description": "Generation de tags/categories",
+      "system": "Tu es un classificateur d'articles. Tu generes des tags pertinents.",
+      "template": "Genere 3 a 5 tags pertinents pour cet article. Les tags doivent etre en minuscules, separes par des virgules.\n\nExemples de tags: intelligence-artificielle, securite, cloud, startup, open-source, machine-learning, api, database, devops, frontend, backend\n\nReponds UNIQUEMENT avec les tags separes par des virgules.\n\nTitre: {title}\nResume: {summary}",
+      "options": {
+        "temperature": 0.3,
+        "num_predict": 50
+      }
+    }
+  },
+  "fallback_values": {
+    "summary": null,
+    "relevance_score": 50,
+    "sentiment": "neutral",
+    "tags": []
+  },
+  "timeout_ms": 60000,
+  "retry_count": 2,
+  "retry_delay_ms": 1000
+}

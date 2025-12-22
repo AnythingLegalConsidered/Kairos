@@ -1,0 +1,534 @@
+{
+  "name": "Kairos RSS Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "trigger-cron",
+      "name": "Toutes les heures",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://kairos-rest:3000/rpc/get_active_topics_with_feeds",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-topics",
+      "name": "Recuperer Topics Actifs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-topics-exist",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-topics",
+      "name": "Topics existent?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "split-topics",
+      "name": "Split Topics",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [660, -100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraire les feeds RSS du topic\nconst topic = $input.first().json;\nconst feeds = topic.rss_feeds || [];\n\n// Retourner un item par feed avec les infos du topic\nreturn feeds.map(feedUrl => ({\n  json: {\n    topic_id: topic.topic_id,\n    topic_name: topic.topic_name,\n    keywords_fr: topic.keywords_fr || [],\n    keywords_en: topic.keywords_en || [],\n    feed_url: feedUrl\n  }\n}));"
+      },
+      "id": "extract-feeds",
+      "name": "Extraire Feeds RSS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, -100]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.feed_url }}",
+        "options": {}
+      },
+      "id": "fetch-rss",
+      "name": "Fetch RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [1100, -100],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combiner les infos du topic avec chaque article RSS\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  // Recuperer les infos du topic depuis le noeud precedent\n  const topicInfo = $('Extraire Feeds RSS').first().json;\n  \n  // Verifier que l'article a les champs requis\n  if (!item.json.link || !item.json.title) {\n    continue;\n  }\n  \n  // Nettoyer le contenu HTML\n  let content = item.json.content || item.json.description || '';\n  content = content.replace(/<[^>]*>/g, ' ')  // Supprimer tags HTML\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&amp;/g, '&')\n    .replace(/&lt;/g, '<')\n    .replace(/&gt;/g, '>')\n    .replace(/&quot;/g, '\"')\n    .replace(/\\s+/g, ' ')  // Normaliser espaces\n    .trim()\n    .substring(0, 5000);  // Limiter la taille\n  \n  results.push({\n    json: {\n      topic_id: topicInfo.topic_id,\n      topic_name: topicInfo.topic_name,\n      keywords_fr: topicInfo.keywords_fr,\n      keywords_en: topicInfo.keywords_en,\n      feed_url: topicInfo.feed_url,\n      // Article data\n      title: item.json.title?.trim() || 'Sans titre',\n      url: item.json.link,\n      content: content,\n      author: item.json.creator || item.json.author || null,\n      published_at: item.json.pubDate || item.json.isoDate || new Date().toISOString(),\n      image_url: item.json.enclosure?.url || null,\n      source_name: item.json.source || topicInfo.feed_url\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "parse-articles",
+      "name": "Parser Articles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, -100]
+    },
+    {
+      "parameters": {
+        "operation": "removeDuplicates",
+        "compare": "selectedFields",
+        "fieldsToCompare": {
+          "fields": [
+            {
+              "fieldName": "url"
+            },
+            {
+              "fieldName": "topic_id"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dedupe-url",
+      "name": "Dedupliquer URLs",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 1,
+      "position": [1540, -100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://kairos-rest:3000/articles",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=ignore-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"topic_id\": \"{{ $json.topic_id }}\",\n  \"title\": {{ JSON.stringify($json.title) }},\n  \"url\": {{ JSON.stringify($json.url) }},\n  \"content\": {{ JSON.stringify($json.content) }},\n  \"source_url\": {{ JSON.stringify($json.feed_url) }},\n  \"source_name\": {{ JSON.stringify($json.source_name) }},\n  \"author\": {{ JSON.stringify($json.author) }},\n  \"published_at\": {{ JSON.stringify($json.published_at) }},\n  \"image_url\": {{ JSON.stringify($json.image_url) }},\n  \"read_status\": \"unread\",\n  \"bookmarked\": false\n}",
+        "options": {}
+      },
+      "id": "insert-article",
+      "name": "Inserer Article",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, -100],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-inserted",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-inserted",
+      "name": "Article insere?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1980, -100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://kairos-ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gemma3:4b\",\n  \"prompt\": \"Resume cet article en 2-3 phrases concises en francais. Reponds uniquement avec le resume, sans introduction ni commentaire.\\n\\nTitre: {{ $json.title }}\\n\\nContenu: {{ $json.content?.substring(0, 2000) || 'Pas de contenu disponible' }}\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"num_predict\": 200\n  }\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "ai-summary",
+      "name": "IA - Resume",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2200, -200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://kairos-ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gemma3:4b\",\n  \"prompt\": \"Note de 0 a 100 la pertinence de cet article pour le sujet '{{ $('Inserer Article').first().json.topic_name || 'veille technologique' }}'. Les mots-cles importants sont: {{ ($('Inserer Article').first().json.keywords_fr || []).concat($('Inserer Article').first().json.keywords_en || []).join(', ') || 'aucun' }}.\\n\\nReponds UNIQUEMENT par un nombre entre 0 et 100, rien d'autre.\\n\\nTitre: {{ $json.title }}\\nResume: {{ $('IA - Resume').first().json.response || $json.content?.substring(0, 500) || 'Pas de contenu' }}\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.1,\n    \"num_predict\": 10\n  }\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "ai-relevance",
+      "name": "IA - Pertinence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2420, -200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://kairos-ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gemma3:4b\",\n  \"prompt\": \"Analyse le sentiment global de cet article. Reponds UNIQUEMENT par l'un de ces trois mots: positive, neutral, negative.\\n\\nTitre: {{ $json.title }}\\nResume: {{ $('IA - Resume').first().json.response || 'Pas de resume' }}\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.1,\n    \"num_predict\": 10\n  }\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "ai-sentiment",
+      "name": "IA - Sentiment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2640, -200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Recuperer les resultats IA\nconst article = $('Inserer Article').first().json;\nconst summaryResult = $('IA - Resume').first().json;\nconst relevanceResult = $('IA - Pertinence').first().json;\nconst sentimentResult = $('IA - Sentiment').first().json;\n\n// Extraire le resume\nlet summary = summaryResult?.response || null;\nif (summary) {\n  summary = summary.trim().substring(0, 1000);\n}\n\n// Extraire le score de pertinence (0-100)\nlet relevanceScore = 50; // Valeur par defaut\nif (relevanceResult?.response) {\n  const match = relevanceResult.response.match(/\\d+/);\n  if (match) {\n    relevanceScore = Math.min(100, Math.max(0, parseInt(match[0])));\n  }\n}\n\n// Extraire le sentiment\nlet sentiment = 'neutral'; // Valeur par defaut\nif (sentimentResult?.response) {\n  const resp = sentimentResult.response.toLowerCase().trim();\n  if (resp.includes('positive')) sentiment = 'positive';\n  else if (resp.includes('negative')) sentiment = 'negative';\n  else sentiment = 'neutral';\n}\n\nreturn [{\n  json: {\n    article_id: article.id,\n    summary: summary,\n    relevance_score: relevanceScore,\n    sentiment: sentiment\n  }\n}];"
+      },
+      "id": "process-ai-results",
+      "name": "Traiter Resultats IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2860, -200]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://kairos-rest:3000/articles?id=eq.{{ $json.article_id }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"summary\": {{ JSON.stringify($json.summary) }},\n  \"relevance_score\": {{ $json.relevance_score }},\n  \"sentiment\": \"{{ $json.sentiment }}\",\n  \"updated_at\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "update-article",
+      "name": "Mettre a jour Article",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3080, -200]
+    },
+    {
+      "parameters": {},
+      "id": "no-topics",
+      "name": "Pas de topics",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [660, 100]
+    },
+    {
+      "parameters": {},
+      "id": "already-exists",
+      "name": "Deja existant",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2200, 0]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rss-process",
+        "options": {}
+      },
+      "id": "trigger-webhook",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 200],
+      "webhookId": "kairos-rss-process"
+    }
+  ],
+  "connections": {
+    "Toutes les heures": {
+      "main": [
+        [
+          {
+            "node": "Recuperer Topics Actifs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Recuperer Topics Actifs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recuperer Topics Actifs": {
+      "main": [
+        [
+          {
+            "node": "Topics existent?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Topics existent?": {
+      "main": [
+        [
+          {
+            "node": "Split Topics",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pas de topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Topics": {
+      "main": [
+        [
+          {
+            "node": "Extraire Feeds RSS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraire Feeds RSS": {
+      "main": [
+        [
+          {
+            "node": "Fetch RSS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch RSS": {
+      "main": [
+        [
+          {
+            "node": "Parser Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser Articles": {
+      "main": [
+        [
+          {
+            "node": "Dedupliquer URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dedupliquer URLs": {
+      "main": [
+        [
+          {
+            "node": "Inserer Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inserer Article": {
+      "main": [
+        [
+          {
+            "node": "Article insere?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Article insere?": {
+      "main": [
+        [
+          {
+            "node": "IA - Resume",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Deja existant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA - Resume": {
+      "main": [
+        [
+          {
+            "node": "IA - Pertinence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA - Pertinence": {
+      "main": [
+        [
+          {
+            "node": "IA - Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA - Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Traiter Resultats IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traiter Resultats IA": {
+      "main": [
+        [
+          {
+            "node": "Mettre a jour Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "kairos",
+      "createdAt": "2024-12-21T00:00:00.000Z",
+      "updatedAt": "2024-12-21T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 2,
+  "updatedAt": "2024-12-21T00:00:00.000Z",
+  "versionId": "1"
+}

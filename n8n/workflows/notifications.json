@@ -1,0 +1,372 @@
+{
+  "name": "Kairos Notifications",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "trigger-cron",
+      "name": "Chaque jour a 8h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://kairos-rest:3000/articles?relevance_score=gte.80&read_status=eq.unread&created_at=gte.{{ new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() }}&select=id,title,summary,url,source_name,relevance_score,sentiment,published_at,topic_id,topics(name)",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-high-relevance",
+      "name": "Articles haute pertinence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-has-articles",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-articles",
+      "name": "Articles trouves?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generer le digest HTML des articles\nconst articles = $input.all().map(item => item.json);\n\nif (!articles.length || !Array.isArray(articles[0])) {\n  return [{ json: { html: '', count: 0, hasArticles: false } }];\n}\n\nconst articleList = articles[0];\n\n// Grouper par topic\nconst byTopic = {};\nfor (const article of articleList) {\n  const topicName = article.topics?.name || 'Sans topic';\n  if (!byTopic[topicName]) {\n    byTopic[topicName] = [];\n  }\n  byTopic[topicName].push(article);\n}\n\n// Generer HTML\nlet html = `\n<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }\n    h1 { color: #3b82f6; }\n    h2 { color: #1f2937; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }\n    .article { margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 8px; }\n    .article h3 { margin: 0 0 8px 0; }\n    .article a { color: #3b82f6; text-decoration: none; }\n    .article a:hover { text-decoration: underline; }\n    .meta { font-size: 12px; color: #6b7280; margin-bottom: 8px; }\n    .score { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }\n    .score-high { background: #dcfce7; color: #166534; }\n    .sentiment-positive { color: #166534; }\n    .sentiment-negative { color: #dc2626; }\n    .sentiment-neutral { color: #6b7280; }\n    .summary { color: #374151; line-height: 1.5; }\n    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280; }\n  </style>\n</head>\n<body>\n  <h1>Kairos - Digest Quotidien</h1>\n  <p>Voici les <strong>${articleList.length}</strong> article(s) a haute pertinence des dernieres 24h.</p>\n`;\n\nfor (const [topicName, topicArticles] of Object.entries(byTopic)) {\n  html += `<h2>${topicName} (${topicArticles.length})</h2>`;\n  \n  for (const article of topicArticles) {\n    const sentimentClass = `sentiment-${article.sentiment || 'neutral'}`;\n    const sentimentLabel = article.sentiment === 'positive' ? 'Positif' : \n                           article.sentiment === 'negative' ? 'Negatif' : 'Neutre';\n    \n    html += `\n    <div class=\"article\">\n      <h3><a href=\"${article.url}\" target=\"_blank\">${article.title}</a></h3>\n      <div class=\"meta\">\n        <span class=\"score score-high\">${article.relevance_score}%</span>\n        <span class=\"${sentimentClass}\">${sentimentLabel}</span>\n        | ${article.source_name || 'Source inconnue'}\n        | ${new Date(article.published_at).toLocaleDateString('fr-FR')}\n      </div>\n      <p class=\"summary\">${article.summary || 'Pas de resume disponible.'}</p>\n    </div>\n    `;\n  }\n}\n\nhtml += `\n  <div class=\"footer\">\n    <p>Ce digest est genere automatiquement par Kairos.</p>\n    <p>Connectez-vous au <a href=\"http://localhost:3000\">dashboard</a> pour plus de details.</p>\n  </div>\n</body>\n</html>\n`;\n\nreturn [{\n  json: {\n    html: html,\n    count: articleList.length,\n    hasArticles: true,\n    subject: `Kairos Digest - ${articleList.length} article(s) importante(s) - ${new Date().toLocaleDateString('fr-FR')}`\n  }\n}];"
+      },
+      "id": "generate-digest",
+      "name": "Generer Digest HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, -100]
+    },
+    {
+      "parameters": {},
+      "id": "no-articles",
+      "name": "Pas d'articles",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [660, 100]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM || 'kairos@localhost' }}",
+        "toEmail": "={{ $env.NOTIFY_EMAIL || '' }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Envoyer Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [880, -100],
+      "disabled": true,
+      "notes": "Activer apres configuration SMTP dans n8n"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://kairos-rest:3000/notification_logs",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"daily_digest\",\n  \"articles_count\": {{ $json.count }},\n  \"sent_at\": \"{{ new Date().toISOString() }}\",\n  \"success\": true\n}",
+        "options": {}
+      },
+      "id": "log-notification",
+      "name": "Logger Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, -200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-digest",
+        "options": {}
+      },
+      "id": "trigger-webhook",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 200],
+      "webhookId": "kairos-send-digest"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://kairos-rest:3000/articles?relevance_score=gte.90&read_status=eq.unread&created_at=gte.{{ new Date(Date.now() - 60 * 60 * 1000).toISOString() }}&select=id,title,url,relevance_score,topic_id,topics(name)",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-urgent",
+      "name": "Articles urgents (>90%)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-has-urgent",
+              "leftValue": "={{ $json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-urgent",
+      "name": "Articles urgents?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generer alerte pour articles tres pertinents\nconst articles = $input.all().map(item => item.json);\n\nif (!articles.length || !Array.isArray(articles[0])) {\n  return [{ json: { message: '', count: 0 } }];\n}\n\nconst articleList = articles[0];\n\nlet message = `ALERTE KAIROS - ${articleList.length} article(s) tres pertinent(s) detecte(s):\\n\\n`;\n\nfor (const article of articleList) {\n  message += `- [${article.relevance_score}%] ${article.title}\\n`;\n  message += `  Topic: ${article.topics?.name || 'N/A'}\\n`;\n  message += `  URL: ${article.url}\\n\\n`;\n}\n\nreturn [{\n  json: {\n    message: message,\n    count: articleList.length,\n    subject: `ALERTE Kairos - ${articleList.length} article(s) a ${articleList[0]?.relevance_score || 90}%+ de pertinence`\n  }\n}];"
+      },
+      "id": "generate-alert",
+      "name": "Generer Alerte",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {},
+      "id": "no-urgent",
+      "name": "Pas d'urgence",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [660, 500]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "trigger-hourly",
+      "name": "Toutes les heures",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 400]
+    }
+  ],
+  "connections": {
+    "Chaque jour a 8h": {
+      "main": [
+        [
+          {
+            "node": "Articles haute pertinence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Articles haute pertinence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Articles haute pertinence": {
+      "main": [
+        [
+          {
+            "node": "Articles trouves?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Articles trouves?": {
+      "main": [
+        [
+          {
+            "node": "Generer Digest HTML",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pas d'articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generer Digest HTML": {
+      "main": [
+        [
+          {
+            "node": "Logger Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Envoyer Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Toutes les heures": {
+      "main": [
+        [
+          {
+            "node": "Articles urgents (>90%)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Articles urgents (>90%)": {
+      "main": [
+        [
+          {
+            "node": "Articles urgents?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Articles urgents?": {
+      "main": [
+        [
+          {
+            "node": "Generer Alerte",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pas d'urgence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "kairos",
+      "createdAt": "2024-12-21T00:00:00.000Z",
+      "updatedAt": "2024-12-21T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 3,
+  "updatedAt": "2024-12-21T00:00:00.000Z",
+  "versionId": "1"
+}

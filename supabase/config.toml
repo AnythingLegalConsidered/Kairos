@@ -1,0 +1,82 @@
+# =============================================================================
+# KAIROS - Supabase Configuration
+# =============================================================================
+# Configuration for Supabase CLI and local development
+# Docs: https://supabase.com/docs/guides/cli/config
+# =============================================================================
+
+[api]
+# Port for the API gateway
+port = 54321
+# Schemas to expose via the API
+schemas = ["public", "storage"]
+# Extra schemas for the API
+extra_search_path = ["public", "extensions"]
+# Max rows returned per request
+max_rows = 1000
+
+[db]
+# Port for direct database connection
+port = 54322
+# Database pooler port
+pooler_port = 54329
+# Major PostgreSQL version
+major_version = 15
+
+[studio]
+# Port for Supabase Studio
+port = 54323
+# Enable Studio API docs
+api_docs = "enabled"
+
+[auth]
+# Site URL for auth redirects
+site_url = "http://localhost:3000"
+# Additional redirect URLs (comma-separated)
+additional_redirect_urls = ["http://localhost:3000"]
+# JWT expiry time in seconds
+jwt_expiry = 3600
+# Enable signup
+enable_signup = true
+# Email configuration
+[auth.email]
+# Enable email auth
+enable_signup = true
+# Double confirm email changes
+double_confirm_changes = false
+# Enable email confirmations
+enable_confirmations = false
+
+[auth.external.google]
+enabled = false
+
+[auth.external.github]
+enabled = false
+
+# =============================================================================
+# Edge Functions Configuration
+# =============================================================================
+
+[functions.trigger-n8n]
+# Trigger n8n workflow for RSS processing
+verify_jwt = true
+
+[functions.cleanup-articles]
+# Cleanup old articles (requires service role)
+verify_jwt = true
+
+# =============================================================================
+# Storage Configuration (optional)
+# =============================================================================
+
+[storage]
+# Enable storage
+enabled = false
+
+# =============================================================================
+# Realtime Configuration
+# =============================================================================
+
+[realtime]
+# Enable realtime subscriptions
+enabled = true
