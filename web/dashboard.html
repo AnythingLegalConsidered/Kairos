@@ -997,6 +997,120 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* ========== TAGS ========== */
+        .article-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin: 0.75rem 0;
+        }
+
+        .tag {
+            padding: 0.2rem 0.6rem;
+            background: #edf2f4;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            color: var(--primary-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .tag:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        [data-theme="dark"] .tag {
+            background: rgba(124, 157, 184, 0.15);
+            color: var(--primary-color);
+        }
+
+        [data-theme="dark"] .tag:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* ========== TLDR SECTION ========== */
+        .tldr-section {
+            margin: 0.75rem 0 1rem 0;
+            cursor: pointer;
+        }
+
+        .tldr-preview {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            margin: 0;
+        }
+
+        .tldr-section.expanded .tldr-preview {
+            -webkit-line-clamp: unset;
+            display: block;
+        }
+
+        .tldr-expand {
+            display: inline-block;
+            margin-top: 0.4rem;
+            font-size: 0.8rem;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .tldr-expand:hover {
+            text-decoration: underline;
+        }
+
+        .tldr-section.expanded .tldr-expand::after {
+            content: ' ▲';
+        }
+
+        .tldr-section:not(.expanded) .tldr-expand::after {
+            content: ' ▼';
+        }
+
+        /* ========== RELEVANCE DISPLAY ========== */
+        .relevance-display {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .relevance-bar-bg {
+            width: 50px;
+            height: 6px;
+            background: #e1e4e8;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .relevance-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        .relevance-high .relevance-bar-fill {
+            background: #1e7e34;
+        }
+
+        .relevance-medium .relevance-bar-fill {
+            background: #b06000;
+        }
+
+        .relevance-low .relevance-bar-fill {
+            background: #c5221f;
+        }
+
+        [data-theme="dark"] .relevance-bar-bg {
+            background: rgba(255, 255, 255, 0.1);
+        }
     </style>
 </head>
 
@@ -1109,6 +1223,12 @@
                         <option value="positive">Positif</option>
                         <option value="neutral">Neutre</option>
                         <option value="negative">Négatif</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="tagFilter">Tag :</label>
+                    <select class="filter-select" id="tagFilter" onchange="resetPageAndRender()">
+                        <option value="">Tous</option>
                     </select>
                 </div>
                 <button class="clear-filters-btn" onclick="clearAdvancedFilters()">Réinitialiser</button>
@@ -1229,6 +1349,7 @@
                 articles = articlesData || [];
 
                 renderTopics();
+                populateTagFilter();
                 renderArticles();
                 updateStats();
             } catch (error) {
@@ -1328,6 +1449,12 @@
                 filtered = filtered.filter(a => a.sentiment === sentimentFilter);
             }
 
+            // Tag filter
+            const tagFilter = document.getElementById('tagFilter').value;
+            if (tagFilter) {
+                filtered = filtered.filter(a => a.tags && a.tags.includes(tagFilter));
+            }
+
             // Search filter
             const search = document.getElementById('searchBox').value.toLowerCase();
             if (search) {
@@ -1386,12 +1513,38 @@
                     ? `<span class="sentiment-badge sentiment-${article.sentiment}">${sentimentLabels[article.sentiment] || article.sentiment}</span>`
                     : '';
 
+                // Tags HTML
+                const tags = article.tags || [];
+                const tagsHtml = tags.length > 0 ? `
+                    <div class="article-tags">
+                        ${tags.map(tag => `<span class="tag" onclick="event.stopPropagation(); filterByTag('${tag.replace(/'/g, "\\'")}')">${tag}</span>`).join('')}
+                    </div>
+                ` : '';
+
+                // TLDR section (summary with expand)
+                const tldrHtml = article.summary ? `
+                    <div class="tldr-section" onclick="toggleTldr(this)">
+                        <p class="tldr-preview">${article.summary}</p>
+                        <span class="tldr-expand">Voir plus</span>
+                    </div>
+                ` : '';
+
+                // Relevance display with bar
+                const relevanceHtml = score > 0 ? `
+                    <div class="relevance-display ${scoreClass}">
+                        <div class="relevance-bar-bg">
+                            <div class="relevance-bar-fill" style="width: ${scorePercent}%"></div>
+                        </div>
+                        <span class="relevance-badge ${scoreClass}">${scorePercent}%</span>
+                    </div>
+                ` : '';
+
                 return `
                     <div class="article-card ${article.read_status ? 'read' : ''}" data-id="${article.id}">
                         <div class="article-header">
                             <span class="article-source">${article.source || 'Source Inconnue'}</span>
                             <div>
-                                ${score > 0 ? `<span class="relevance-badge ${scoreClass}">${scorePercent}%</span>` : ''}
+                                ${relevanceHtml}
                                 ${sentimentBadge}
                             </div>
                         </div>
@@ -1400,12 +1553,13 @@
                             <a href="article-detail.html?id=${article.id}">${article.title}</a>
                         </h3>
 
-                        ${article.summary ? `<p class="article-summary">${article.summary}</p>` : ''}
+                        ${tagsHtml}
+                        ${tldrHtml}
 
                         <div class="article-meta">
                             <span>${dateStr}</span>
                             ${topic ? `<span>${topic.topic_name}</span>` : ''}
-                            
+
                             <div class="article-actions">
                                 <button class="action-icon-btn" onclick="window.open('${article.url}', '_blank'); markAsRead('${article.id}')" title="Lire">
                                     ↗
@@ -1657,7 +1811,56 @@
             document.getElementById('dateFilter').value = 'all';
             document.getElementById('scoreFilter').value = '0';
             document.getElementById('sentimentFilter').value = 'all';
+            document.getElementById('tagFilter').value = '';
             renderArticles();
+        }
+
+        // Toggle TLDR expand/collapse
+        function toggleTldr(element) {
+            element.classList.toggle('expanded');
+            const expandText = element.querySelector('.tldr-expand');
+            if (expandText) {
+                expandText.textContent = element.classList.contains('expanded') ? 'Voir moins' : 'Voir plus';
+            }
+        }
+
+        // Get all unique tags from articles
+        function getAllTags() {
+            const allTags = new Set();
+            articles.forEach(a => {
+                if (a.tags && Array.isArray(a.tags)) {
+                    a.tags.forEach(tag => allTags.add(tag));
+                }
+            });
+            return Array.from(allTags).sort();
+        }
+
+        // Populate the tag filter dropdown
+        function populateTagFilter() {
+            const select = document.getElementById('tagFilter');
+            const currentValue = select.value;
+            const tags = getAllTags();
+
+            select.innerHTML = '<option value="">Tous</option>' +
+                tags.map(t => `<option value="${t}">${t}</option>`).join('');
+
+            // Restore previous selection if still valid
+            if (currentValue && tags.includes(currentValue)) {
+                select.value = currentValue;
+            }
+        }
+
+        // Filter by clicking on a tag
+        function filterByTag(tag) {
+            document.getElementById('tagFilter').value = tag;
+
+            // Open advanced filters if closed
+            const panel = document.getElementById('advancedFilters');
+            if (panel.classList.contains('hidden')) {
+                toggleAdvancedFilters();
+            }
+
+            resetPageAndRender();
         }
 
         // Event listeners

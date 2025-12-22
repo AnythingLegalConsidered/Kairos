@@ -415,6 +415,8 @@
                 return;
             }
 
+            console.log('[Kairos] Fetching article:', articleId);
+
             try {
                 // Fetch article
                 const { data: articleData, error: articleError } = await supabase
@@ -423,31 +425,47 @@
                     .eq('id', articleId)
                     .single();
 
-                if (articleError) throw articleError;
+                console.log('[Kairos] Article response:', { data: articleData, error: articleError });
+
+                if (articleError) {
+                    console.error('[Kairos] Article error details:', articleError);
+                    if (articleError.code === 'PGRST116') {
+                        throw new Error('Article non trouvé ou accès refusé');
+                    }
+                    throw articleError;
+                }
                 if (!articleData) throw new Error('Article non trouvé');
 
                 article = articleData;
 
                 // Fetch topic if exists
                 if (article.topic_id) {
-                    const { data: topicData } = await supabase
+                    const { data: topicData, error: topicError } = await supabase
                         .from('topics')
                         .select('id, topic_name')
                         .eq('id', article.topic_id)
                         .single();
+
+                    if (topicError) {
+                        console.warn('[Kairos] Topic fetch warning:', topicError);
+                    }
                     topic = topicData;
                 }
 
-                // Mark as read
-                await supabase
-                    .from('articles')
-                    .update({ read_status: true })
-                    .eq('id', articleId);
+                // Mark as read (don't fail if this doesn't work)
+                try {
+                    await supabase
+                        .from('articles')
+                        .update({ read_status: true })
+                        .eq('id', articleId);
+                } catch (readError) {
+                    console.warn('[Kairos] Could not mark as read:', readError);
+                }
 
                 renderArticle();
 
             } catch (error) {
-                console.error('Error fetching article:', error);
+                console.error('[Kairos] Error fetching article:', error);
                 showError(error.message || 'Erreur lors du chargement');
             }
         }
