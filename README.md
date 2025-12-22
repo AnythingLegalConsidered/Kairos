@@ -126,9 +126,15 @@ kairos/
 
 ## Roadmap
 
-- [x] Phase 1-6 : MVP local fonctionnel
-- [ ] Phase 7 : Déploiement cloud (Supabase Cloud, n8n Cloud, HuggingFace API)
-- [ ] PWA et mode hors-ligne
+Voir [ROADMAP.md](ROADMAP.md) pour le détail des évolutions planifiées.
+
+**Prochaines versions :**
+- **v0.2.0** - Tags IA automatiques, vue TLDR, filtrage par tags
+- **v0.3.0** - Bibliothèque de 100+ sources RSS (FR/EN)
+- **v0.4.0** - Détection de tendances, articles similaires
+- **v0.5.0** - Vue Kanban, PWA, newsletter digest
+- **v0.6.0** - Collaboration, annotations, API publique
+- **v1.0.0** - Déploiement cloud production
 
 ## Licence
 
