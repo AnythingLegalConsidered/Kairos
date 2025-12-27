@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 
 <head>
@@ -494,33 +494,6 @@
             text-align: center;
             padding: 4rem;
             color: var(--text-secondary);
-        }
-
-        .user-menu {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .user-email {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-
-        .logout-btn {
-            padding: 0.5rem 1rem;
-            background: transparent;
-            border: 1px solid #ddd;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: all 0.2s;
-        }
-
-        .logout-btn:hover {
-            background: var(--text-primary);
-            color: white;
-            border-color: var(--text-primary);
         }
 
         /* Topic Actions */
@@ -1075,41 +1048,45 @@
             content: ' ▼';
         }
 
-        /* ========== RELEVANCE DISPLAY ========== */
-        .relevance-display {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+        /* Hide expand button when text is not truncated */
+        .tldr-section.no-truncation {
+            cursor: default;
         }
 
-        .relevance-bar-bg {
-            width: 50px;
-            height: 6px;
-            background: #e1e4e8;
-            border-radius: 3px;
-            overflow: hidden;
+        .tldr-section.no-truncation .tldr-expand {
+            display: none;
         }
 
-        .relevance-bar-fill {
-            height: 100%;
-            border-radius: 3px;
-            transition: width 0.3s;
+        /* ========== RELEVANCE SCORE (minimaliste) ========== */
+        .relevance-score {
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
         }
 
-        .relevance-high .relevance-bar-fill {
-            background: #1e7e34;
+        .relevance-high {
+            color: #1e7e34;
         }
 
-        .relevance-medium .relevance-bar-fill {
-            background: #b06000;
+        .relevance-medium {
+            color: #b06000;
         }
 
-        .relevance-low .relevance-bar-fill {
-            background: #c5221f;
+        .relevance-low {
+            color: #c5221f;
         }
 
-        [data-theme="dark"] .relevance-bar-bg {
-            background: rgba(255, 255, 255, 0.1);
+        [data-theme="dark"] .relevance-high {
+            color: #6fcf7c;
+        }
+
+        [data-theme="dark"] .relevance-medium {
+            color: #f0a050;
+        }
+
+        [data-theme="dark"] .relevance-low {
+            color: #f07070;
         }
     </style>
 </head>
@@ -1117,17 +1094,18 @@
 <body>
     <header class="header">
         <a href="index.html" class="logo">
-            <span>🕐</span> Kairos
+            <span>🕐</span> Kairos
         </a>
         <nav class="nav-links">
             <a href="index.html">Accueil</a>
             <a href="topic-setup.html">Créer un Topic</a>
             <a href="dashboard.html" class="active">Dashboard</a>
         </nav>
-        <div class="user-menu" id="userMenu">
-            <!-- Dynamically populated by auth-menu.js -->
-        </div>
-        <button class="theme-toggle" id="themeToggle" aria-label="Changer de thème" title="Mode sombre/clair">
+        <div class="header-right">
+            <div class="user-menu" id="userMenu">
+                <!-- Dynamically populated -->
+            </div>
+            <button class="theme-toggle" id="themeToggle" aria-label="Changer de thème" title="Mode sombre/clair">
             <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
             </svg>
@@ -1142,7 +1120,8 @@
                 <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
             </svg>
-        </button>
+            </button>
+        </div>
     </header>
 
     <div class="dashboard-container">
@@ -1209,22 +1188,13 @@
                     <label for="scoreFilter">Score min :</label>
                     <select class="filter-select" id="scoreFilter" onchange="resetPageAndRender()">
                         <option value="0">Tous</option>
-                        <option value="1">1+</option>
-                        <option value="2">2+</option>
-                        <option value="3">3+</option>
-                        <option value="4">4+</option>
-                        <option value="5">5</option>
+                        <option value="30">30%+</option>
+                        <option value="50">50%+</option>
+                        <option value="70">70%+</option>
+                        <option value="85">85%+</option>
                     </select>
                 </div>
-                <div class="filter-group">
-                    <label for="sentimentFilter">Sentiment :</label>
-                    <select class="filter-select" id="sentimentFilter" onchange="resetPageAndRender()">
-                        <option value="all">Tous</option>
-                        <option value="positive">Positif</option>
-                        <option value="neutral">Neutre</option>
-                        <option value="negative">Négatif</option>
-                    </select>
-                </div>
+                
                 <div class="filter-group">
                     <label for="tagFilter">Tag :</label>
                     <select class="filter-select" id="tagFilter" onchange="resetPageAndRender()">
@@ -1311,6 +1281,7 @@
         // Check authentication on page load
         async function checkAuth() {
             const { data: { session } } = await supabaseClient.auth.getSession();
+            const userMenu = document.getElementById('userMenu');
 
             if (!session) {
                 // Not logged in, redirect to login
@@ -1319,6 +1290,12 @@
             }
 
             currentUser = session.user;
+
+            // Update user menu with email and logout button
+            userMenu.innerHTML = `
+                <span class="user-email">${session.user.email}</span>
+                <button class="logout-btn" onclick="handleLogout()">Déconnexion</button>
+            `;
 
             return session;
         }
@@ -1356,7 +1333,7 @@
                 console.error('Fetch error:', error);
                 document.getElementById('articlesGrid').innerHTML = `
                     <div class="empty-state">
-                        <h3>❌ Erreur de connexion</h3>
+                        <h3>âŒ Erreur de connexion</h3>
                         <p>Impossible de charger les données. ${error.message || ''}</p>
                     </div>
                 `;
@@ -1406,7 +1383,7 @@
             if (currentFilter === 'unread') {
                 filtered = filtered.filter(a => !a.read_status);
             } else if (currentFilter === 'high') {
-                filtered = filtered.filter(a => (a.relevance_score || 0) >= 4);
+                filtered = filtered.filter(a => (a.relevance_score || 0) >= 70); // Score 0-100
             } else if (currentFilter === 'bookmarked') {
                 filtered = filtered.filter(a => a.bookmarked);
             }
@@ -1414,7 +1391,6 @@
             // Advanced filters
             const dateFilter = document.getElementById('dateFilter').value;
             const scoreFilter = parseInt(document.getElementById('scoreFilter').value);
-            const sentimentFilter = document.getElementById('sentimentFilter').value;
 
             // Date filter
             if (dateFilter !== 'all') {
@@ -1442,11 +1418,6 @@
             // Score filter
             if (scoreFilter > 0) {
                 filtered = filtered.filter(a => (a.relevance_score || 0) >= scoreFilter);
-            }
-
-            // Sentiment filter
-            if (sentimentFilter !== 'all') {
-                filtered = filtered.filter(a => a.sentiment === sentimentFilter);
             }
 
             // Tag filter
@@ -1477,7 +1448,7 @@
             if (filtered.length === 0) {
                 grid.innerHTML = `
                     <div class="empty-state">
-                        <h3>📭 Aucun article</h3>
+                        <h3>🔭 Aucun article</h3>
                         <p>Aucun article ne correspond a vos criteres.</p>
                         <p style="margin-top: 1rem;"><a href="topic-setup.html">Creer un topic</a> pour commencer la veille.</p>
                     </div>
@@ -1501,17 +1472,12 @@
             const paginatedArticles = filtered.slice(startIndex, endIndex);
 
             grid.innerHTML = paginatedArticles.map(article => {
+                // Score est sur 0-100 depuis n8n
                 const score = article.relevance_score || 0;
-                const scoreClass = score >= 4 ? 'relevance-high' : score >= 3 ? 'relevance-medium' : 'relevance-low';
-                const scorePercent = score * 20; // Convert 1-5 to percentage
+                const scoreClass = score >= 70 ? 'relevance-high' : score >= 40 ? 'relevance-medium' : 'relevance-low';
+                const scorePercent = Math.round(score); // Already 0-100 from n8n
                 const topic = topics.find(t => t.id === article.topic_id);
                 const dateStr = new Date(article.published_date || article.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-
-                // Sentiment badge
-                const sentimentLabels = { positive: 'Positif', neutral: 'Neutre', negative: 'Négatif' };
-                const sentimentBadge = article.sentiment
-                    ? `<span class="sentiment-badge sentiment-${article.sentiment}">${sentimentLabels[article.sentiment] || article.sentiment}</span>`
-                    : '';
 
                 // Tags HTML
                 const tags = article.tags || [];
@@ -1529,24 +1495,14 @@
                     </div>
                 ` : '';
 
-                // Relevance display with bar
-                const relevanceHtml = score > 0 ? `
-                    <div class="relevance-display ${scoreClass}">
-                        <div class="relevance-bar-bg">
-                            <div class="relevance-bar-fill" style="width: ${scorePercent}%"></div>
-                        </div>
-                        <span class="relevance-badge ${scoreClass}">${scorePercent}%</span>
-                    </div>
-                ` : '';
+                // Relevance score (minimaliste)
+                const relevanceHtml = score > 0 ? `<span class="relevance-score ${scoreClass}">${scorePercent}%</span>` : '';
 
                 return `
                     <div class="article-card ${article.read_status ? 'read' : ''}" data-id="${article.id}">
                         <div class="article-header">
                             <span class="article-source">${article.source || 'Source Inconnue'}</span>
-                            <div>
-                                ${relevanceHtml}
-                                ${sentimentBadge}
-                            </div>
+                            ${relevanceHtml}
                         </div>
 
                         <h3 class="article-title">
@@ -1568,7 +1524,7 @@
                                     ${article.bookmarked ? '★' : '☆'}
                                 </button>
                                 <button class="action-icon-btn" onclick="markAsRead('${article.id}')" title="Marquer comme lu" style="color: ${article.read_status ? 'var(--primary-color)' : ''}">
-                                    ${article.read_status ? '✓' : '○'}
+                                    ${article.read_status ? 'âœ“' : '○'}
                                 </button>
                             </div>
                         </div>
@@ -1578,6 +1534,11 @@
 
             // Render pagination
             grid.innerHTML += renderPagination(totalPages);
+
+            // Check if TLDR sections need expand button (after DOM is fully rendered)
+            requestAnimationFrame(() => {
+                requestAnimationFrame(checkTldrTruncation);
+            });
         }
 
         function renderPagination(totalPages) {
@@ -1719,7 +1680,7 @@
 
             statTotal.textContent = articles.length;
             statUnread.textContent = articles.filter(a => !a.read_status).length;
-            statHighRelevance.textContent = articles.filter(a => (a.relevance_score || 0) >= 4).length;
+            statHighRelevance.textContent = articles.filter(a => (a.relevance_score || 0) >= 70).length; // Score 0-100
         }
 
         function selectTopic(topicId) {
@@ -1810,18 +1771,51 @@
         function clearAdvancedFilters() {
             document.getElementById('dateFilter').value = 'all';
             document.getElementById('scoreFilter').value = '0';
-            document.getElementById('sentimentFilter').value = 'all';
             document.getElementById('tagFilter').value = '';
             renderArticles();
         }
 
         // Toggle TLDR expand/collapse
         function toggleTldr(element) {
+            // Don't toggle if text is not truncated
+            if (element.classList.contains('no-truncation')) {
+                return;
+            }
             element.classList.toggle('expanded');
             const expandText = element.querySelector('.tldr-expand');
             if (expandText) {
                 expandText.textContent = element.classList.contains('expanded') ? 'Voir moins' : 'Voir plus';
             }
+        }
+
+        // Check if TLDR sections are truncated and hide "Voir plus" button if not
+        function checkTldrTruncation() {
+            const tldrSections = document.querySelectorAll('.tldr-section');
+            tldrSections.forEach(section => {
+                const preview = section.querySelector('.tldr-preview');
+                if (preview) {
+                    // Temporarily remove line clamp to measure full height
+                    const originalStyle = preview.style.cssText;
+                    preview.style.webkitLineClamp = 'unset';
+                    preview.style.display = 'block';
+                    const fullHeight = preview.scrollHeight;
+
+                    // Restore original style
+                    preview.style.cssText = originalStyle;
+
+                    // Get clamped height (2 lines)
+                    const clampedHeight = preview.clientHeight;
+
+                    // If full height is significantly more than clamped, text is truncated
+                    const isTruncated = fullHeight > clampedHeight + 5;
+
+                    if (!isTruncated) {
+                        section.classList.add('no-truncation');
+                    } else {
+                        section.classList.remove('no-truncation');
+                    }
+                }
+            });
         }
 
         // Get all unique tags from articles
@@ -1919,7 +1913,7 @@
             }
 
             if (editingRssFeeds.includes(url)) {
-                Toast.warning('Cette source est déjà dans la liste');
+                Toast.warning('Cette source est déjÃ  dans la liste');
                 return;
             }
 
@@ -2079,7 +2073,7 @@
             const articlesToExport = getFilteredArticlesForExport();
 
             if (articlesToExport.length === 0) {
-                Toast.warning('Aucun article à exporter');
+                Toast.warning('Aucun article Ã  exporter');
                 document.getElementById('exportMenu').classList.remove('active');
                 return;
             }
@@ -2095,7 +2089,6 @@
                     topic: topic ? topic.topic_name : '',
                     resume: article.summary || '',
                     score_pertinence: article.relevance_score || 0,
-                    sentiment: article.sentiment || '',
                     lu: article.read_status ? 'Oui' : 'Non',
                     favori: article.bookmarked ? 'Oui' : 'Non',
                     tags: Array.isArray(article.tags) ? article.tags.join(', ') : ''

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 
 <head>
@@ -333,32 +333,34 @@
 <body>
     <header class="header">
         <a href="index.html" class="logo">
-            <span>🕐</span> Kairos
+            <span>🕐</span> Kairos
         </a>
         <nav class="nav-links">
             <a href="index.html">Accueil</a>
             <a href="topic-setup.html">Créer un Topic</a>
             <a href="dashboard.html">Dashboard</a>
         </nav>
-        <div class="user-menu" id="userMenu">
-            <!-- Dynamically populated -->
+        <div class="header-right">
+            <div class="user-menu" id="userMenu">
+                <!-- Dynamically populated -->
+            </div>
+            <button class="theme-toggle" id="themeToggle" aria-label="Changer de thème" title="Mode sombre/clair">
+                <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+                <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </button>
         </div>
-        <button class="theme-toggle" id="themeToggle" aria-label="Changer de thème" title="Mode sombre/clair">
-            <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-            </svg>
-            <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="5"></circle>
-                <line x1="12" y1="1" x2="12" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="23"></line>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                <line x1="1" y1="12" x2="3" y2="12"></line>
-                <line x1="21" y1="12" x2="23" y2="12"></line>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-            </svg>
-        </button>
     </header>
 
     <div class="article-container">
@@ -377,18 +379,22 @@
     <script>
         // Initialize Supabase client
         const { url, anonKey, options } = window.KairosConfig.getSupabaseConfig();
-        const supabase = window.supabase.createClient(url, anonKey, options);
+        const supabaseClient = window.supabase.createClient(url, anonKey, options);
 
         let article = null;
         let topic = null;
 
-        // Get article ID from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const articleId = urlParams.get('id');
+        // Get article ID from URL (urlParams already defined in config.js)
+        const articleId = new URLSearchParams(window.location.search).get('id');
+
+        console.log('[Kairos Debug] Article ID from URL:', articleId);
+        console.log('[Kairos Debug] Full URL:', window.location.href);
 
         // Check authentication
         async function checkAuth() {
-            const { data: { session } } = await supabase.auth.getSession();
+            console.log('[Kairos Debug] checkAuth() called');
+            const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+            console.log('[Kairos Debug] Session result:', { session: !!session, error: sessionError });
             const userMenu = document.getElementById('userMenu');
 
             if (session) {
@@ -404,7 +410,7 @@
         }
 
         async function handleLogout() {
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             window.location.href = 'index.html';
         }
 
@@ -419,7 +425,7 @@
 
             try {
                 // Fetch article
-                const { data: articleData, error: articleError } = await supabase
+                const { data: articleData, error: articleError } = await supabaseClient
                     .from('articles')
                     .select('*')
                     .eq('id', articleId)
@@ -440,7 +446,7 @@
 
                 // Fetch topic if exists
                 if (article.topic_id) {
-                    const { data: topicData, error: topicError } = await supabase
+                    const { data: topicData, error: topicError } = await supabaseClient
                         .from('topics')
                         .select('id, topic_name')
                         .eq('id', article.topic_id)
@@ -454,7 +460,7 @@
 
                 // Mark as read (don't fail if this doesn't work)
                 try {
-                    await supabase
+                    await supabaseClient
                         .from('articles')
                         .update({ read_status: true })
                         .eq('id', articleId);
@@ -492,11 +498,12 @@
         }
 
         function getRelevanceBadge(score) {
-            if (!score || score === 0) return '';
-            const percent = score * 20;
+            if (score === null || score === undefined) return '';
+            // Score est sur 0-100 depuis n8n
+            const percent = Math.round(score);
             let badgeClass = 'badge-relevance-low';
-            if (score >= 4) badgeClass = 'badge-relevance-high';
-            else if (score >= 3) badgeClass = 'badge-relevance-medium';
+            if (percent >= 70) badgeClass = 'badge-relevance-high';
+            else if (percent >= 40) badgeClass = 'badge-relevance-medium';
             return `<span class="badge ${badgeClass}">${percent}% Pertinence</span>`;
         }
 
@@ -604,7 +611,7 @@
 
             try {
                 const newValue = !article.bookmarked;
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('articles')
                     .update({ bookmarked: newValue })
                     .eq('id', article.id);
@@ -615,7 +622,7 @@
                 renderArticle();
             } catch (error) {
                 console.error('Error toggling bookmark:', error);
-                Toast.apiError(error, 'Erreur lors de la mise à jour');
+                Toast.apiError(error, 'Erreur lors de la mise Ã  jour');
                 bookmarkBtn.classList.remove('loading');
             }
         }
@@ -637,12 +644,20 @@
         }
 
         // Initialize
+        console.log('[Kairos Debug] Starting initialization...');
         checkAuth().then(session => {
+            console.log('[Kairos Debug] checkAuth resolved, session:', !!session);
             if (session) {
+                console.log('[Kairos Debug] Session exists, calling fetchArticle()');
                 fetchArticle();
+            } else {
+                console.log('[Kairos Debug] No session, should redirect to login');
             }
+        }).catch(err => {
+            console.error('[Kairos Debug] checkAuth error:', err);
         });
     </script>
 </body>
 
 </html>
+
