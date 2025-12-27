@@ -1,5 +1,5 @@
 {
-  "name": "Kairos RSS Processor",
+  "name": "Kairos - RSS Processor v3",
   "nodes": [
     {
       "parameters": {
@@ -12,18 +12,29 @@
           ]
         }
       },
-      "id": "trigger-cron",
+      "id": "schedule",
       "name": "Toutes les heures",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0],
-      "disabled": false
+      "position": [-200, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rss-process",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-200, 500],
+      "webhookId": "kairos-rss-v3"
     },
     {
       "parameters": {
         "method": "POST",
         "url": "http://kairos-rest:3000/rpc/get_active_topics_with_feeds",
-        "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -44,10 +55,10 @@
         "options": {}
       },
       "id": "get-topics",
-      "name": "Recuperer Topics Actifs",
+      "name": "Get Topics",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [220, 0]
+      "position": [50, 400]
     },
     {
       "parameters": {
@@ -59,7 +70,7 @@
           },
           "conditions": [
             {
-              "id": "condition-topics-exist",
+              "id": "topics-exist",
               "leftValue": "={{ $json }}",
               "rightValue": "",
               "operator": {
@@ -72,31 +83,21 @@
         },
         "options": {}
       },
-      "id": "check-topics",
+      "id": "if-topics",
       "name": "Topics existent?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [440, 0]
+      "position": [270, 400]
     },
     {
       "parameters": {
-        "options": {}
-      },
-      "id": "split-topics",
-      "name": "Split Topics",
-      "type": "n8n-nodes-base.splitOut",
-      "typeVersion": 1,
-      "position": [660, -100]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Extraire les feeds RSS du topic\nconst topic = $input.first().json;\nconst feeds = topic.rss_feeds || [];\n\n// Retourner un item par feed avec les infos du topic\nreturn feeds.map(feedUrl => ({\n  json: {\n    topic_id: topic.topic_id,\n    topic_name: topic.topic_name,\n    keywords_fr: topic.keywords_fr || [],\n    keywords_en: topic.keywords_en || [],\n    feed_url: feedUrl\n  }\n}));"
+        "jsCode": "// Extraire les feeds RSS de chaque topic\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const topic = item.json;\n  if (!topic || !topic.rss_feeds) continue;\n\n  const feeds = topic.rss_feeds || [];\n  \n  for (const feedUrl of feeds) {\n    results.push({\n      json: {\n        topic_id: topic.topic_id,\n        topic_name: topic.topic_name,\n        user_id: topic.user_id,\n        keywords_fr: topic.keywords_fr || [],\n        keywords_en: topic.keywords_en || [],\n        feed_url: feedUrl\n      }\n    });\n  }\n}\n\nif (results.length === 0) {\n  return [{ json: { error: 'No feeds found' } }];\n}\nreturn results;"
       },
       "id": "extract-feeds",
-      "name": "Extraire Feeds RSS",
+      "name": "Extract Feeds",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [880, -100]
+      "position": [490, 300]
     },
     {
       "parameters": {
@@ -107,46 +108,215 @@
       "name": "Fetch RSS",
       "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 1.1,
-      "position": [1100, -100],
+      "position": [710, 300],
+      "onError": "continueRegularOutput",
       "continueOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "// Combiner les infos du topic avec chaque article RSS\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  // Recuperer les infos du topic depuis le noeud precedent\n  const topicInfo = $('Extraire Feeds RSS').first().json;\n  \n  // Verifier que l'article a les champs requis\n  if (!item.json.link || !item.json.title) {\n    continue;\n  }\n  \n  // Nettoyer le contenu HTML\n  let content = item.json.content || item.json.description || '';\n  content = content.replace(/<[^>]*>/g, ' ')  // Supprimer tags HTML\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&amp;/g, '&')\n    .replace(/&lt;/g, '<')\n    .replace(/&gt;/g, '>')\n    .replace(/&quot;/g, '\"')\n    .replace(/\\s+/g, ' ')  // Normaliser espaces\n    .trim()\n    .substring(0, 5000);  // Limiter la taille\n  \n  results.push({\n    json: {\n      topic_id: topicInfo.topic_id,\n      topic_name: topicInfo.topic_name,\n      keywords_fr: topicInfo.keywords_fr,\n      keywords_en: topicInfo.keywords_en,\n      feed_url: topicInfo.feed_url,\n      // Article data\n      title: item.json.title?.trim() || 'Sans titre',\n      url: item.json.link,\n      content: content,\n      author: item.json.creator || item.json.author || null,\n      published_at: item.json.pubDate || item.json.isoDate || new Date().toISOString(),\n      image_url: item.json.enclosure?.url || null,\n      source_name: item.json.source || topicInfo.feed_url\n    }\n  });\n}\n\nreturn results;"
+        "jsCode": "// Parser les articles RSS et preparer les donnees\nconst items = $input.all();\nconst feedInfo = $('Extract Feeds').first().json;\nconst results = [];\n\nfor (const item of items) {\n  if (!item.json.link || !item.json.title) continue;\n\n  const title = item.json.title.trim();\n  let content = item.json.content || item.json.description || '';\n  content = content.replace(/<[^>]*>/g, ' ')\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&amp;/g, '&')\n    .replace(/&lt;/g, '<')\n    .replace(/&gt;/g, '>')\n    .replace(/&quot;/g, '\"')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .substring(0, 3000);\n\n  results.push({\n    json: {\n      topic_id: feedInfo.topic_id,\n      topic_name: feedInfo.topic_name,\n      user_id: feedInfo.user_id,\n      keywords_fr: feedInfo.keywords_fr,\n      keywords_en: feedInfo.keywords_en,\n      feed_url: feedInfo.feed_url,\n      title: title,\n      url: item.json.link,\n      content_rss: content,\n      author: item.json.creator || item.json.author || null,\n      published_at: item.json.pubDate || item.json.isoDate || new Date().toISOString(),\n      image_url: item.json.enclosure?.url || null,\n      source_name: feedInfo.feed_url.match(/https?:\\/\\/([^/]+)/)?.[1] || 'Unknown'\n    }\n  });\n}\n\n// Limiter a 10 articles par feed\nreturn results.slice(0, 10);"
       },
       "id": "parse-articles",
-      "name": "Parser Articles",
+      "name": "Parse Articles",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1320, -100]
+      "position": [930, 300]
     },
     {
       "parameters": {
-        "operation": "removeDuplicates",
-        "compare": "selectedFields",
-        "fieldsToCompare": {
-          "fields": [
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-articles",
+      "name": "Loop Articles",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1150, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://kairos-rest:3000/articles?topic_id=eq.{{ $json.topic_id }}&url=eq.{{ encodeURIComponent($json.url) }}&select=id&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
             {
-              "fieldName": "url"
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
             },
             {
-              "fieldName": "topic_id"
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
             }
           ]
         },
         "options": {}
       },
-      "id": "dedupe-url",
-      "name": "Dedupliquer URLs",
-      "type": "n8n-nodes-base.removeDuplicates",
-      "typeVersion": 1,
-      "position": [1540, -100]
+      "id": "check-duplicate",
+      "name": "Check Duplicate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1370, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "not-exists",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-new",
+      "name": "Nouvel article?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1590, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://r.jina.ai/{{ $('Loop Articles').item.json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "jina-extract",
+      "name": "Jina Extract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1810, 200],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combiner les donnees de l'article avec le contenu Jina\nconst articleData = $('Loop Articles').first().json;\nconst jinaResponse = $input.first().json;\n\n// Utiliser le contenu Jina si disponible, sinon le contenu RSS\nlet content = jinaResponse.data || articleData.content_rss || '';\ncontent = content.substring(0, 8000); // Limiter la taille\n\n// Combiner les mots-cles\nconst keywords = [\n  ...(articleData.keywords_fr || []),\n  ...(articleData.keywords_en || [])\n].join(', ');\n\nreturn [{\n  json: {\n    topic_id: articleData.topic_id,\n    topic_name: articleData.topic_name,\n    user_id: articleData.user_id,\n    keywords: keywords,\n    feed_url: articleData.feed_url,\n    title: articleData.title,\n    url: articleData.url,\n    content: content,\n    author: articleData.author,\n    published_at: articleData.published_at,\n    image_url: articleData.image_url,\n    source_name: articleData.source_name\n  }\n}];"
+      },
+      "id": "merge-content",
+      "name": "Merge Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2030, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://kairos-ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gemma3:4b\",\n  \"prompt\": \"Resume cet article en 2-3 phrases concises en francais. Concentre-toi sur les informations cles et les points importants. Ne commence pas par 'Cet article' ou 'L'article'. Reponds directement avec le resume.\\n\\nTitre: {{ $json.title }}\\n\\nContenu: {{ $json.content.substring(0, 4000).replace(/[\\n\\r]+/g, ' ').replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') }}\",\n  \"system\": \"Tu es un assistant specialise dans le resume d'articles de veille technologique. Tu reponds toujours en francais, de maniere concise et factuelle.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"num_predict\": 200\n  }\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "ollama-summary",
+      "name": "IA - Resume",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2250, 200],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraire le resume et preparer pour la pertinence\nconst articleData = $('Merge Content').first().json;\nconst summaryResponse = $input.first().json;\n\nlet summary = summaryResponse?.response || '';\nsummary = summary.trim().substring(0, 1000);\n\nreturn [{\n  json: {\n    topic_id: articleData.topic_id,\n    topic_name: articleData.topic_name,\n    user_id: articleData.user_id,\n    keywords: articleData.keywords,\n    feed_url: articleData.feed_url,\n    title: articleData.title,\n    url: articleData.url,\n    content: articleData.content,\n    author: articleData.author,\n    published_at: articleData.published_at,\n    image_url: articleData.image_url,\n    source_name: articleData.source_name,\n    summary: summary\n  }\n}];"
+      },
+      "id": "extract-summary",
+      "name": "Extract Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2470, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://kairos-ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gemma3:4b\",\n  \"prompt\": \"Tu dois noter la PERTINENCE de cet article par rapport au sujet de veille.\\n\\nSUJET DE VEILLE: {{ $json.topic_name }}\\nMOTS-CLES DU SUJET: {{ $json.keywords }}\\n\\nARTICLE A EVALUER:\\nTitre: {{ $json.title }}\\nContenu: {{ $json.summary.replace(/[\\n\\r]+/g, ' ').replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') }}\\n\\nINSTRUCTIONS:\\nDonne une note PRECISE entre 0 et 100 (pas une note sur 5 ou 10).\\n\\nExemples de notes attendues:\\n- Un article 100% sur le sujet = 92 ou 87 ou 95\\n- Un article partiellement lie = 58 ou 63 ou 71\\n- Un article peu lie = 34 ou 41 ou 28\\n- Un article sans rapport = 12 ou 8 ou 15\\n\\nATTENTION: Ne reponds PAS par 1, 2, 3, 4 ou 5. Reponds par un nombre entre 0 et 100.\\n\\nTA NOTE (un seul nombre entre 0 et 100):\",\n  \"system\": \"Tu es un evaluateur. Tu donnes une note de pertinence entre 0 et 100. Tu reponds UNIQUEMENT par un nombre entier. Exemples de reponses valides: 73, 45, 88, 91, 34, 67. Exemples de reponses INVALIDES: 4, 5, 3/5, quatre.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"num_predict\": 8\n  }\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "ollama-relevance",
+      "name": "IA - Pertinence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2690, 200],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraire le score de pertinence\nconst articleData = $('Extract Summary').first().json;\nconst relevanceResponse = $input.first().json;\n\nlet relevanceScore = 50; // Valeur par defaut\nif (relevanceResponse?.response) {\n  const match = relevanceResponse.response.match(/\\d+/);\n  if (match) {\n    relevanceScore = Math.min(100, Math.max(0, parseInt(match[0])));\n  }\n}\n\nreturn [{\n  json: {\n    topic_id: articleData.topic_id,\n    topic_name: articleData.topic_name,\n    user_id: articleData.user_id,\n    keywords: articleData.keywords,\n    feed_url: articleData.feed_url,\n    title: articleData.title,\n    url: articleData.url,\n    content: articleData.content,\n    author: articleData.author,\n    published_at: articleData.published_at,\n    image_url: articleData.image_url,\n    source_name: articleData.source_name,\n    summary: articleData.summary,\n    relevance_score: relevanceScore\n  }\n}];"
+      },
+      "id": "extract-relevance",
+      "name": "Extract Relevance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2910, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://kairos-ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gemma3:4b\",\n  \"prompt\": \"Genere 3 a 5 tags pertinents pour cet article. Les tags doivent etre en minuscules, en francais, separes par des virgules, sans espaces dans les tags (utilise des tirets).\\n\\nExemples de tags: intelligence-artificielle, securite, cloud, startup, open-source, machine-learning, api, database, devops, frontend, backend, cybersecurite, automatisation, data-science, blockchain, fintech, saas, iot, robotique\\n\\nReponds UNIQUEMENT avec les tags separes par des virgules, rien d'autre.\\n\\nTitre: {{ $json.title }}\\nResume: {{ $json.summary.replace(/[\\n\\r]+/g, ' ').replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"') }}\",\n  \"system\": \"Tu es un classificateur d'articles. Tu generes des tags pertinents en minuscules, separes par des virgules.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"num_predict\": 50\n  }\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "ollama-tags",
+      "name": "IA - Tags",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3130, 200],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraire les tags et preparer les donnees finales\nconst articleData = $('Extract Relevance').first().json;\nconst tagsResponse = $input.first().json;\n\n// Parser les tags\nlet tags = [];\nif (tagsResponse?.response) {\n  tags = tagsResponse.response\n    .split(',')\n    .map(t => t.trim().toLowerCase().replace(/[^a-z0-9-]/g, ''))\n    .filter(t => t.length > 0 && t.length < 30)\n    .slice(0, 5);\n}\n\nreturn [{\n  json: {\n    topic_id: articleData.topic_id,\n    user_id: articleData.user_id,\n    title: articleData.title,\n    url: articleData.url,\n    content: articleData.content,\n    summary: articleData.summary,\n    source_url: articleData.feed_url,\n    source_name: articleData.source_name,\n    author: articleData.author,\n    image_url: articleData.image_url,\n    published_at: articleData.published_at,\n    relevance_score: articleData.relevance_score,\n    tags: tags,\n    read_status: 'unread',\n    bookmarked: false\n  }\n}];"
+      },
+      "id": "extract-tags",
+      "name": "Extract Tags",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3350, 200]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "http://kairos-rest:3000/articles",
-        "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -170,170 +340,55 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"topic_id\": \"{{ $json.topic_id }}\",\n  \"title\": {{ JSON.stringify($json.title) }},\n  \"url\": {{ JSON.stringify($json.url) }},\n  \"content\": {{ JSON.stringify($json.content) }},\n  \"source_url\": {{ JSON.stringify($json.feed_url) }},\n  \"source_name\": {{ JSON.stringify($json.source_name) }},\n  \"author\": {{ JSON.stringify($json.author) }},\n  \"published_at\": {{ JSON.stringify($json.published_at) }},\n  \"image_url\": {{ JSON.stringify($json.image_url) }},\n  \"read_status\": \"unread\",\n  \"bookmarked\": false\n}",
+        "jsonBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
       "id": "insert-article",
-      "name": "Inserer Article",
+      "name": "Insert Article",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1760, -100],
-      "continueOnFail": true
+      "position": [3570, 200],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "condition-inserted",
-              "leftValue": "={{ $json.id }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "isNotEmpty"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
+        "amount": 2,
+        "unit": "seconds"
       },
-      "id": "check-inserted",
-      "name": "Article insere?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [1980, -100]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://kairos-ollama:11434/api/generate",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"gemma3:4b\",\n  \"prompt\": \"Resume cet article en 2-3 phrases concises en francais. Reponds uniquement avec le resume, sans introduction ni commentaire.\\n\\nTitre: {{ $json.title }}\\n\\nContenu: {{ $json.content?.substring(0, 2000) || 'Pas de contenu disponible' }}\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"num_predict\": 200\n  }\n}",
-        "options": {
-          "timeout": 60000
-        }
-      },
-      "id": "ai-summary",
-      "name": "IA - Resume",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [2200, -200],
-      "continueOnFail": true
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://kairos-ollama:11434/api/generate",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"gemma3:4b\",\n  \"prompt\": \"Note de 0 a 100 la pertinence de cet article pour le sujet '{{ $('Inserer Article').first().json.topic_name || 'veille technologique' }}'. Les mots-cles importants sont: {{ ($('Inserer Article').first().json.keywords_fr || []).concat($('Inserer Article').first().json.keywords_en || []).join(', ') || 'aucun' }}.\\n\\nReponds UNIQUEMENT par un nombre entre 0 et 100, rien d'autre.\\n\\nTitre: {{ $json.title }}\\nResume: {{ $('IA - Resume').first().json.response || $json.content?.substring(0, 500) || 'Pas de contenu' }}\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.1,\n    \"num_predict\": 10\n  }\n}",
-        "options": {
-          "timeout": 30000
-        }
-      },
-      "id": "ai-relevance",
-      "name": "IA - Pertinence",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [2420, -200],
-      "continueOnFail": true
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://kairos-ollama:11434/api/generate",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"gemma3:4b\",\n  \"prompt\": \"Analyse le sentiment global de cet article. Reponds UNIQUEMENT par l'un de ces trois mots: positive, neutral, negative.\\n\\nTitre: {{ $json.title }}\\nResume: {{ $('IA - Resume').first().json.response || 'Pas de resume' }}\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.1,\n    \"num_predict\": 10\n  }\n}",
-        "options": {
-          "timeout": 30000
-        }
-      },
-      "id": "ai-sentiment",
-      "name": "IA - Sentiment",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [2640, -200],
-      "continueOnFail": true
-    },
-    {
-      "parameters": {
-        "jsCode": "// Recuperer les resultats IA\nconst article = $('Inserer Article').first().json;\nconst summaryResult = $('IA - Resume').first().json;\nconst relevanceResult = $('IA - Pertinence').first().json;\nconst sentimentResult = $('IA - Sentiment').first().json;\n\n// Extraire le resume\nlet summary = summaryResult?.response || null;\nif (summary) {\n  summary = summary.trim().substring(0, 1000);\n}\n\n// Extraire le score de pertinence (0-100)\nlet relevanceScore = 50; // Valeur par defaut\nif (relevanceResult?.response) {\n  const match = relevanceResult.response.match(/\\d+/);\n  if (match) {\n    relevanceScore = Math.min(100, Math.max(0, parseInt(match[0])));\n  }\n}\n\n// Extraire le sentiment\nlet sentiment = 'neutral'; // Valeur par defaut\nif (sentimentResult?.response) {\n  const resp = sentimentResult.response.toLowerCase().trim();\n  if (resp.includes('positive')) sentiment = 'positive';\n  else if (resp.includes('negative')) sentiment = 'negative';\n  else sentiment = 'neutral';\n}\n\nreturn [{\n  json: {\n    article_id: article.id,\n    summary: summary,\n    relevance_score: relevanceScore,\n    sentiment: sentiment\n  }\n}];"
-      },
-      "id": "process-ai-results",
-      "name": "Traiter Resultats IA",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2860, -200]
-    },
-    {
-      "parameters": {
-        "method": "PATCH",
-        "url": "=http://kairos-rest:3000/articles?id=eq.{{ $json.article_id }}",
-        "authentication": "none",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.CvGPVcSrdWNqg71tF_g4YKevVDnN4F2WdoXh3ce0T7k"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"summary\": {{ JSON.stringify($json.summary) }},\n  \"relevance_score\": {{ $json.relevance_score }},\n  \"sentiment\": \"{{ $json.sentiment }}\",\n  \"updated_at\": \"{{ new Date().toISOString() }}\"\n}",
-        "options": {}
-      },
-      "id": "update-article",
-      "name": "Mettre a jour Article",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [3080, -200]
+      "id": "wait",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [3790, 200],
+      "webhookId": "wait-rss"
     },
     {
       "parameters": {},
       "id": "no-topics",
-      "name": "Pas de topics",
+      "name": "No Topics",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [660, 100]
+      "position": [490, 500]
     },
     {
       "parameters": {},
       "id": "already-exists",
-      "name": "Deja existant",
+      "name": "Already Exists",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [2200, 0]
+      "position": [1810, 400]
     },
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "rss-process",
-        "options": {}
+        "content": "## Kairos RSS Processor v3\n\n### Workflow:\n1. **Trigger**: Schedule (1h) ou Webhook\n2. **Get Topics**: Recupere les topics actifs\n3. **Extract Feeds**: Extrait les URLs RSS\n4. **Fetch RSS**: Lit les flux RSS\n5. **Parse Articles**: Parse et nettoie\n6. **Check Duplicate**: Verifie si l'article existe\n7. **Jina Extract**: Extrait le contenu complet\n8. **IA Analysis** (sequentiel):\n   - Resume (2-3 phrases)\n   - Pertinence (0-100)\n   - Tags (3-5 tags)\n9. **Insert Article**: Sauvegarde en BDD",
+        "height": 340,
+        "width": 320
       },
-      "id": "trigger-webhook",
-      "name": "Webhook Trigger",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [0, 200],
-      "webhookId": "kairos-rss-process"
+      "id": "sticky-note",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-500, 200]
     }
   ],
   "connections": {
@@ -341,65 +396,36 @@
       "main": [
         [
           {
-            "node": "Recuperer Topics Actifs",
+            "node": "Get Topics",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Webhook Trigger": {
+    "Webhook": {
       "main": [
         [
           {
-            "node": "Recuperer Topics Actifs",
+            "node": "Get Topics",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Recuperer Topics Actifs": {
+    "Get Topics": {
       "main": [
         [
           {
-            "node": "Topics existent?",
+            "node": "Extract Feeds",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Topics existent?": {
-      "main": [
-        [
-          {
-            "node": "Split Topics",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Pas de topics",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Split Topics": {
-      "main": [
-        [
-          {
-            "node": "Extraire Feeds RSS",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extraire Feeds RSS": {
+    "Extract Feeds": {
       "main": [
         [
           {
@@ -414,47 +440,88 @@
       "main": [
         [
           {
-            "node": "Parser Articles",
+            "node": "Parse Articles",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parser Articles": {
+    "Parse Articles": {
       "main": [
         [
           {
-            "node": "Dedupliquer URLs",
+            "node": "Loop Articles",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Dedupliquer URLs": {
+    "Loop Articles": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Check Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Duplicate": {
       "main": [
         [
           {
-            "node": "Inserer Article",
+            "node": "Nouvel article?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Inserer Article": {
+    "Nouvel article?": {
       "main": [
         [
           {
-            "node": "Article insere?",
+            "node": "Jina Extract",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Already Exists",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Article insere?": {
+    "Already Exists": {
+      "main": [
+        [
+          {
+            "node": "Loop Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jina Extract": {
+      "main": [
+        [
+          {
+            "node": "Merge Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Content": {
       "main": [
         [
           {
@@ -462,17 +529,21 @@
             "type": "main",
             "index": 0
           }
-        ],
+        ]
+      ]
+    },
+    "IA - Resume": {
+      "main": [
         [
           {
-            "node": "Deja existant",
+            "node": "Extract Summary",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "IA - Resume": {
+    "Extract Summary": {
       "main": [
         [
           {
@@ -487,29 +558,62 @@
       "main": [
         [
           {
-            "node": "IA - Sentiment",
+            "node": "Extract Relevance",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "IA - Sentiment": {
+    "Extract Relevance": {
       "main": [
         [
           {
-            "node": "Traiter Resultats IA",
+            "node": "IA - Tags",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Traiter Resultats IA": {
+    "IA - Tags": {
       "main": [
         [
           {
-            "node": "Mettre a jour Article",
+            "node": "Extract Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Tags": {
+      "main": [
+        [
+          {
+            "node": "Insert Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Article": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Articles",
             "type": "main",
             "index": 0
           }
@@ -519,16 +623,5 @@
   },
   "settings": {
     "executionOrder": "v1"
-  },
-  "staticData": null,
-  "tags": [
-    {
-      "name": "kairos",
-      "createdAt": "2024-12-21T00:00:00.000Z",
-      "updatedAt": "2024-12-21T00:00:00.000Z"
-    }
-  ],
-  "triggerCount": 2,
-  "updatedAt": "2024-12-21T00:00:00.000Z",
-  "versionId": "1"
+  }
 }
