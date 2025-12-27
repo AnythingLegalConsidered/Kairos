@@ -18,18 +18,9 @@
       }
     },
     "relevance": {
-      "description": "Score de pertinence (0-100)",
-      "system": "Tu es un evaluateur de pertinence d'articles. Tu reponds UNIQUEMENT par un nombre entre 0 et 100.",
-      "template": "Evalue la pertinence de cet article pour le sujet '{topic_name}'.\nMots-cles importants: {keywords}\n\nCriteres:\n- 90-100: Directement lie au sujet, mentionne les mots-cles\n- 70-89: Lie au sujet mais pas directement\n- 50-69: Partiellement lie\n- 30-49: Faiblement lie\n- 0-29: Pas pertinent\n\nReponds UNIQUEMENT par un nombre entre 0 et 100.\n\nTitre: {title}\nResume: {summary}",
-      "options": {
-        "temperature": 0.1,
-        "num_predict": 10
-      }
-    },
-    "sentiment": {
-      "description": "Analyse de sentiment",
-      "system": "Tu es un analyseur de sentiment. Tu reponds UNIQUEMENT par: positive, neutral, ou negative.",
-      "template": "Analyse le sentiment global de cet article.\n\nCriteres:\n- positive: Nouvelles positives, progres, succes, innovations benefiques\n- negative: Problemes, echecs, risques, menaces, controverses\n- neutral: Informatif, factuel, sans jugement de valeur\n\nReponds UNIQUEMENT par: positive, neutral, ou negative.\n\nTitre: {title}\nResume: {summary}",
+      "description": "Score de pertinence (0-100) - Note precise",
+      "system": "Tu es un evaluateur de pertinence d'articles. Tu reponds UNIQUEMENT par un nombre entre 0 et 100, rien d'autre.",
+      "template": "Evalue la pertinence de cet article pour le sujet '{topic_name}'.\nMots-cles importants: {keywords}\n\nCriteres de notation precise:\n- 95-100: Article central sur le sujet, mentionne plusieurs mots-cles\n- 85-94: Directement lie au sujet, mentionne au moins un mot-cle\n- 70-84: Lie au sujet mais de maniere indirecte\n- 50-69: Partiellement lie, contexte proche\n- 30-49: Faiblement lie, sujet adjacent\n- 10-29: Tres peu pertinent\n- 0-9: Aucun rapport avec le sujet\n\nReponds UNIQUEMENT par un nombre entre 0 et 100.\n\nTitre: {title}\nResume: {summary}",
       "options": {
         "temperature": 0.1,
         "num_predict": 10
@@ -37,8 +28,8 @@
     },
     "tags": {
       "description": "Generation de tags/categories",
-      "system": "Tu es un classificateur d'articles. Tu generes des tags pertinents.",
-      "template": "Genere 3 a 5 tags pertinents pour cet article. Les tags doivent etre en minuscules, separes par des virgules.\n\nExemples de tags: intelligence-artificielle, securite, cloud, startup, open-source, machine-learning, api, database, devops, frontend, backend\n\nReponds UNIQUEMENT avec les tags separes par des virgules.\n\nTitre: {title}\nResume: {summary}",
+      "system": "Tu es un classificateur d'articles. Tu generes des tags pertinents en minuscules, separes par des virgules.",
+      "template": "Genere 3 a 5 tags pertinents pour cet article. Les tags doivent etre en minuscules, en francais, separes par des virgules, sans espaces dans les tags (utilise des tirets).\n\nExemples de tags: intelligence-artificielle, securite, cloud, startup, open-source, machine-learning, api, database, devops, frontend, backend, cybersecurite, automatisation, data-science, blockchain, fintech, saas, iot, robotique\n\nReponds UNIQUEMENT avec les tags separes par des virgules, rien d'autre.\n\nTitre: {title}\nResume: {summary}",
       "options": {
         "temperature": 0.3,
         "num_predict": 50
@@ -48,7 +39,6 @@
   "fallback_values": {
     "summary": null,
     "relevance_score": 50,
-    "sentiment": "neutral",
     "tags": []
   },
   "timeout_ms": 60000,
