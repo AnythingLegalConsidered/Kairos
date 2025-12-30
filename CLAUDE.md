@@ -149,8 +149,34 @@ OLLAMA_PORT=11434
 3. **Pas de hot-reload n8n** - Les workflows JSON ne se synchronisent pas automatiquement
 4. **Supabase local** - Les cles JWT sont des cles de demo, pas pour la production
 
+## Gestion des taches
+
+### Systeme de priorisation (inbox.md)
+
+| Difficulte | Action | Exemple |
+|------------|--------|---------|
+| **Easy** | Faire immediatement | Fix typo, petite correction |
+| **Medium** | Ajouter a `inbox.md` | Feature simple, refactoring leger |
+| **Hard** | Creer un PRD dans `docs/prd/` | Feature majeure, changement architecture |
+
+### Workflow de travail
+
+1. **Avant de commencer** : Lire `inbox.md` pour voir les taches en cours
+2. **Nouvelle tache** : Classifier en Easy/Medium/Hard
+3. **Tache Hard** : Utiliser le template `docs/prd/TEMPLATE.md`
+4. **Fin de session** : Mettre a jour `inbox.md` avec les notes de session
+
+### Linting
+
+```bash
+npm run lint      # Verifier le code
+npm run lint:fix  # Corriger automatiquement
+```
+
 ## Liens vers documentation detaillee
 
+- Gestion des taches: [inbox.md](./inbox.md)
+- Template PRD: [docs/prd/TEMPLATE.md](./docs/prd/TEMPLATE.md)
 - Architecture complete: [PLAN_PROJET.md](./PLAN_PROJET.md)
 - Evolutions futures: [ROADMAP.md](./ROADMAP.md)
 - Tests et rapports: [docs/TESTS.md](./docs/TESTS.md)

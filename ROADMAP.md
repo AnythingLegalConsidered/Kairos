@@ -138,6 +138,20 @@
 
 ## Changelog
 
+### v0.3.0 (30/12/2024) ✅
+- Bibliothèque de sources : 114 sources RSS (42 FR + 72 EN)
+- Nouvelle page `sources.html` avec filtres et recherche
+- Système de favoris (table + fonctions RPC)
+- Fonction `suggest_sources()` pour suggestions par mots-clés
+- Catégories : Technology, AI/ML, Programming, Security, Science, Business, Startup, Design
+- Navigation mise à jour sur toutes les pages
+
+### v0.2.0 (22/12/2024) ✅
+- Tags automatiques générés par l'IA
+- Vue TLDR avec résumé condensé
+- Score de pertinence visible (badge coloré)
+- Filtrage par tags
+
 ### v0.1.0 (22/12/2024) ✅
 - Infrastructure Docker (Supabase, n8n, Ollama, Nginx)
 - Backend complet avec RLS
@@ -147,4 +161,4 @@
 
 ---
 
-*Dernière mise à jour : 22 décembre 2024*
+*Dernière mise à jour : 30 décembre 2024*
