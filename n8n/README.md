@@ -1,4 +1,19 @@
-# Kairos - Configuration des Workflows n8n
+# n8n/ - Workflows d'orchestration
+
+> Workflows n8n pour l'automatisation du traitement RSS et IA.
+
+## Structure
+
+```
+n8n/
+├── README.md           # CE FICHIER
+├── prompts.json        # Prompts IA pour Gemma (resume, pertinence, tags)
+├── exemple             # Exemple de workflow (reference)
+└── workflows/
+    ├── rss_processor.json      # Workflow principal
+    ├── rss_processor_test.json # Version de test
+    └── cleanup.json            # Nettoyage des vieux articles
+```
 
 ## Workflows disponibles
 
@@ -215,3 +230,79 @@ Si vous modifiez les fichiers JSON:
 3. Re-activez le workflow
 
 Les workflows ne se synchronisent pas automatiquement avec les fichiers JSON.
+
+---
+
+## Prompts IA (prompts.json)
+
+Le fichier `prompts.json` centralise tous les prompts utilises par l'IA :
+
+| Prompt | Description | Output |
+|--------|-------------|--------|
+| `summary` | Resume d'article en 2-3 phrases | Texte francais |
+| `relevance` | Score de pertinence | Nombre 0-100 |
+| `tags` | Generation de tags | Liste separee par virgules |
+
+### Parametres du modele
+
+```json
+{
+  "model": "gemma3:4b",
+  "temperature": 0.3,
+  "num_predict": 200,
+  "top_p": 0.9
+}
+```
+
+### Modifier un prompt
+
+1. Editer `prompts.json`
+2. Mettre a jour le noeud correspondant dans le workflow n8n
+3. Tester avec quelques articles
+4. Exporter le workflow modifie
+
+---
+
+## Integration avec Supabase
+
+Les workflows utilisent l'API REST Supabase via Kong :
+
+```
+URL: http://kairos-kong:8000
+Auth: Bearer {{ $env.SUPABASE_SERVICE_KEY }}
+```
+
+### Endpoints utilises
+
+| Methode | Endpoint | Usage |
+|---------|----------|-------|
+| POST | `/rest/v1/rpc/get_active_topics_with_feeds` | Liste des topics |
+| POST | `/rest/v1/articles` | Insertion d'article |
+| PATCH | `/rest/v1/articles?id=eq.{id}` | Mise a jour IA |
+| DELETE | `/rest/v1/articles?...` | Cleanup |
+
+---
+
+## Integration avec Ollama
+
+L'IA locale est accessible via :
+
+```
+URL: http://kairos-ollama:11434
+Endpoint: POST /api/generate
+Model: gemma3:4b
+```
+
+### Format de requete
+
+```json
+{
+  "model": "gemma3:4b",
+  "prompt": "...",
+  "stream": false,
+  "options": {
+    "temperature": 0.3,
+    "num_predict": 200
+  }
+}
+```
