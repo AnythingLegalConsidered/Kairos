@@ -20,10 +20,7 @@ const STATIC_ASSETS = [
     '/manifest.json'
 ];
 
-// External resources to cache
-const EXTERNAL_ASSETS = [
-    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap'
-];
+// Note: External fonts are cached automatically via cacheFirst strategy
 
 // ============================================
 // INSTALL - Cache static assets
@@ -266,7 +263,7 @@ self.addEventListener('notificationclick', (event) => {
 
     if (event.notification.data?.url) {
         event.waitUntil(
-            clients.openWindow(event.notification.data.url)
+            self.clients.openWindow(event.notification.data.url)
         );
     }
 });
