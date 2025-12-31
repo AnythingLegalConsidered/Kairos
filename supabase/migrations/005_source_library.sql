@@ -11,7 +11,7 @@
 -- Allows users to mark sources as favorites for quick access
 
 CREATE TABLE IF NOT EXISTS public.user_favorite_sources (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     source_id UUID NOT NULL REFERENCES public.rss_sources(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

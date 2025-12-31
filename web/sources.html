@@ -18,13 +18,6 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script src="toast.js"></script>
-    <script>
-        // Initialize Supabase client (global for auth-menu.js)
-        (function() {
-            const { url, anonKey, options } = window.KairosConfig.getSupabaseConfig();
-            window.supabaseClient = window.supabase.createClient(url, anonKey, options);
-        })();
-    </script>
     <style>
         .sources-header {
             text-align: center;
@@ -461,11 +454,15 @@
         </div>
     </div>
 
+    <script>
+        // Initialize Supabase client first (before auth-menu.js)
+        const { url, anonKey, options } = window.KairosConfig.getSupabaseConfig();
+        const supabaseClient = window.supabase.createClient(url, anonKey, options);
+        // Set globally for auth-menu.js
+        window.supabaseClient = supabaseClient;
+    </script>
     <script src="auth-menu.js"></script>
     <script>
-        // Use supabaseClient from window (set in head)
-        // Note: 'supabase' is reserved by the CDN, use supabaseClient instead
-
         // State
         let allSources = [];
         let userFavorites = new Set();
