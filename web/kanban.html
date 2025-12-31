@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kairos - Vue Kanban</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="theme.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="toast.js"></script>
+    <style>
+        /* Kanban Specific Styles */
+        body {
+            overflow: hidden;
+        }
+
+        .kanban-container {
+            display: flex;
+            height: calc(100vh - 72px);
+        }
+
+        /* Sidebar (same as dashboard) */
+        .sidebar {
+            width: 250px;
+            background: #ffffff;
+            border-right: 1px solid #e1e4e8;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #f0f0f0;
+            font-family: var(--font-heading);
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+        }
+
+        .topic-list {
+            list-style: none;
+            overflow-y: auto;
+            flex: 1;
+            padding: 1rem;
+            margin: 0;
+        }
+
+        .topic-item {
+            padding: 0.8rem 1rem;
+            margin-bottom: 0.25rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .topic-item:hover {
+            background: #f4f6f8;
+            color: var(--primary-color);
+        }
+
+        .topic-item.active {
+            background: #edf2f4;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .topic-count {
+            background: white;
+            border: 1px solid #eee;
+            color: var(--text-secondary);
+            padding: 0.1rem 0.5rem;
+            border-radius: 10px;
+            font-size: 0.7rem;
+        }
+
+        /* Kanban Board */
+        .kanban-board {
+            flex: 1;
+            display: flex;
+            gap: 1rem;
+            padding: 1.5rem;
+            overflow-x: auto;
+            background: var(--bg-color);
+        }
+
+        .kanban-column {
+            flex: 1;
+            min-width: 280px;
+            max-width: 350px;
+            background: #f8f9fa;
+            border-radius: var(--radius-md);
+            display: flex;
+            flex-direction: column;
+            max-height: 100%;
+        }
+
+        .column-header {
+            padding: 1rem 1.25rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .column-header .count {
+            background: #e1e4e8;
+            color: var(--text-secondary);
+            padding: 0.2rem 0.6rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* Column colors */
+        .kanban-column[data-status="unread"] .column-header {
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+        .kanban-column[data-status="unread"] .column-header .count {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .kanban-column[data-status="reading"] .column-header {
+            border-color: #f59e0b;
+            color: #d97706;
+        }
+        .kanban-column[data-status="reading"] .column-header .count {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .kanban-column[data-status="read"] .column-header {
+            border-color: #10b981;
+            color: #059669;
+        }
+        .kanban-column[data-status="read"] .column-header .count {
+            background: #d1fae5;
+            color: #047857;
+        }
+
+        .kanban-column[data-status="archived"] .column-header {
+            border-color: #6b7280;
+            color: #6b7280;
+        }
+
+        .column-cards {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.75rem;
+            min-height: 100px;
+        }
+
+        .column-cards.drag-over {
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: var(--radius-sm);
+        }
+
+        /* Kanban Card */
+        .kanban-card {
+            background: #ffffff;
+            border-radius: var(--radius-sm);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            cursor: grab;
+            transition: all 0.2s;
+            border: 1px solid #eef0f2;
+        }
+
+        .kanban-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary-color);
+        }
+
+        .kanban-card.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .kanban-card.selected {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+
+        .card-source {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.4;
+            margin-bottom: 0.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-title a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .card-title a:hover {
+            color: var(--primary-color);
+        }
+
+        .card-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .card-score {
+            font-weight: 600;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+        }
+
+        .card-score.high { background: #d1fae5; color: #047857; }
+        .card-score.medium { background: #fef3c7; color: #b45309; }
+        .card-score.low { background: #fee2e2; color: #b91c1c; }
+
+        .card-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .card-action-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .card-action-btn:hover {
+            background: #f0f2f5;
+            color: var(--text-primary);
+        }
+
+        .card-action-btn.bookmarked {
+            color: #d4af37;
+        }
+
+        /* Keyboard shortcuts help */
+        .shortcuts-help {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: white;
+            border: 1px solid #e1e4e8;
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            box-shadow: var(--shadow-lg);
+            font-size: 0.85rem;
+            display: none;
+            z-index: 1000;
+            max-width: 300px;
+        }
+
+        .shortcuts-help.visible {
+            display: block;
+        }
+
+        .shortcuts-help h4 {
+            margin: 0 0 0.75rem 0;
+            font-size: 0.9rem;
+        }
+
+        .shortcut-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.4rem;
+        }
+
+        .shortcut-key {
+            background: #f0f0f0;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+
+        .shortcuts-toggle {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: white;
+            border: 1px solid #e1e4e8;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            font-size: 1.2rem;
+            z-index: 999;
+        }
+
+        .shortcuts-toggle:hover {
+            background: #f8f9fa;
+        }
+
+        /* Empty column state */
+        .column-empty {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        /* Dark mode adjustments */
+        [data-theme="dark"] .kanban-column {
+            background: #1e1e1e;
+        }
+
+        [data-theme="dark"] .kanban-card {
+            background: #2d2d2d;
+            border-color: #3d3d3d;
+        }
+
+        [data-theme="dark"] .sidebar {
+            background: #1a1a1a;
+            border-color: #2d2d2d;
+        }
+
+        [data-theme="dark"] .shortcuts-help,
+        [data-theme="dark"] .shortcuts-toggle {
+            background: #2d2d2d;
+            border-color: #3d3d3d;
+        }
+
+        /* View switcher */
+        .view-switcher {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .view-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e1e4e8;
+            background: transparent;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .view-btn:hover {
+            background: #f4f6f8;
+        }
+
+        .view-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <a href="index.html" class="logo">
+            <span>🕐</span> Kairos
+        </a>
+        <nav class="nav-links">
+            <a href="index.html">Accueil</a>
+            <a href="sources.html">Bibliothèque</a>
+            <a href="topic-setup.html">Créer un Topic</a>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="kanban.html" class="active">Kanban</a>
+        </nav>
+        <div class="header-right">
+            <div class="user-menu" id="userMenu"></div>
+            <button class="theme-toggle" id="themeToggle" aria-label="Changer de thème">
+                <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+                <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <div class="kanban-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">📂 Topics</div>
+            <div class="view-switcher">
+                <a href="dashboard.html" class="view-btn">📋 Liste</a>
+                <button class="view-btn active">📊 Kanban</button>
+            </div>
+            <ul class="topic-list" id="topicList">
+                <li class="topic-item active" data-topic="all">
+                    <span>Tous les articles</span>
+                    <span class="topic-count" id="totalCount">0</span>
+                </li>
+            </ul>
+        </aside>
+
+        <div class="kanban-board" id="kanbanBoard">
+            <div class="kanban-column" data-status="unread">
+                <div class="column-header">
+                    <span>📥 À lire</span>
+                    <span class="count" id="countUnread">0</span>
+                </div>
+                <div class="column-cards" id="colUnread"></div>
+            </div>
+
+            <div class="kanban-column" data-status="reading">
+                <div class="column-header">
+                    <span>📖 En cours</span>
+                    <span class="count" id="countReading">0</span>
+                </div>
+                <div class="column-cards" id="colReading"></div>
+            </div>
+
+            <div class="kanban-column" data-status="read">
+                <div class="column-header">
+                    <span>✅ Lu</span>
+                    <span class="count" id="countRead">0</span>
+                </div>
+                <div class="column-cards" id="colRead"></div>
+            </div>
+
+            <div class="kanban-column" data-status="archived">
+                <div class="column-header">
+                    <span>📦 Archivé</span>
+                    <span class="count" id="countArchived">0</span>
+                </div>
+                <div class="column-cards" id="colArchived"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard shortcuts toggle -->
+    <button class="shortcuts-toggle" onclick="toggleShortcutsHelp()" title="Raccourcis clavier (?)">?</button>
+
+    <!-- Keyboard shortcuts help panel -->
+    <div class="shortcuts-help" id="shortcutsHelp">
+        <h4>⌨️ Raccourcis clavier</h4>
+        <div class="shortcut-row"><span>Navigation</span><span class="shortcut-key">j</span> <span class="shortcut-key">k</span></div>
+        <div class="shortcut-row"><span>Ouvrir article</span><span class="shortcut-key">o</span></div>
+        <div class="shortcut-row"><span>Marquer lu</span><span class="shortcut-key">m</span></div>
+        <div class="shortcut-row"><span>Favori</span><span class="shortcut-key">b</span></div>
+        <div class="shortcut-row"><span>Archiver</span><span class="shortcut-key">a</span></div>
+        <div class="shortcut-row"><span>Déplacer col.</span><span class="shortcut-key">1</span> <span class="shortcut-key">2</span> <span class="shortcut-key">3</span> <span class="shortcut-key">4</span></div>
+        <div class="shortcut-row"><span>Aide</span><span class="shortcut-key">?</span></div>
+    </div>
+
+    <script>
+        // kanban.js - Kairos Kanban View
+        // Purpose: Drag & drop kanban board for article workflow
+        // Dependencies: config.js, toast.js, theme.js
+
+        const { url, anonKey, options } = window.KairosConfig.getSupabaseConfig();
+        const supabaseClient = window.supabase.createClient(url, anonKey, options);
+
+        let articles = [];
+        let topics = [];
+        let currentTopic = 'all';
+        let selectedCardId = null;
+        let allCards = [];
+
+        // Status mapping
+        const STATUS_COLUMNS = {
+            'unread': 'colUnread',
+            'reading': 'colReading',
+            'read': 'colRead',
+            'archived': 'colArchived'
+        };
+
+        // ============================================
+        // AUTH & INIT
+        // ============================================
+
+        async function checkAuth() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            const userMenu = document.getElementById('userMenu');
+
+            if (!session) {
+                window.location.href = 'login.html';
+                return null;
+            }
+
+            userMenu.innerHTML = `
+                <span class="user-email">${session.user.email}</span>
+                <button class="logout-btn" onclick="handleLogout()">Déconnexion</button>
+            `;
+
+            return session;
+        }
+
+        async function handleLogout() {
+            await supabaseClient.auth.signOut();
+            window.location.href = 'index.html';
+        }
+
+        // ============================================
+        // DATA FETCHING
+        // ============================================
+
+        async function fetchData() {
+            try {
+                // Fetch topics
+                const { data: topicsData, error: topicsError } = await supabaseClient
+                    .from('topics')
+                    .select('id,topic_name,description')
+                    .eq('active', true);
+
+                if (topicsError) throw topicsError;
+                topics = topicsData || [];
+
+                // Fetch articles
+                const { data: articlesData, error: articlesError } = await supabaseClient
+                    .from('articles')
+                    .select('*')
+                    .order('relevance_score', { ascending: false, nullsFirst: false });
+
+                if (articlesError) throw articlesError;
+                articles = articlesData || [];
+
+                renderTopics();
+                renderKanban();
+                initDragAndDrop();
+            } catch (error) {
+                console.error('Fetch error:', error);
+                Toast.show('Erreur de chargement', 'error');
+            }
+        }
+
+        // ============================================
+        // RENDERING
+        // ============================================
+
+        function renderTopics() {
+            const list = document.getElementById('topicList');
+            const totalCount = articles.length;
+
+            list.innerHTML = `
+                <li class="topic-item ${currentTopic === 'all' ? 'active' : ''}" data-topic="all" onclick="selectTopic('all')">
+                    <span>Tous les articles</span>
+                    <span class="topic-count">${totalCount}</span>
+                </li>
+            `;
+
+            topics.forEach(topic => {
+                const count = articles.filter(a => a.topic_id === topic.id).length;
+                list.innerHTML += `
+                    <li class="topic-item ${currentTopic === topic.id ? 'active' : ''}" data-topic="${topic.id}" onclick="selectTopic('${topic.id}')">
+                        <span>${topic.topic_name}</span>
+                        <span class="topic-count">${count}</span>
+                    </li>
+                `;
+            });
+        }
+
+        function selectTopic(topicId) {
+            currentTopic = topicId;
+            renderTopics();
+            renderKanban();
+        }
+
+        function renderKanban() {
+            // Filter by topic
+            let filtered = currentTopic === 'all'
+                ? articles
+                : articles.filter(a => a.topic_id === currentTopic);
+
+            // Group by status
+            const groups = {
+                'unread': filtered.filter(a => a.read_status === 'unread' || !a.read_status),
+                'reading': filtered.filter(a => a.read_status === 'reading'),
+                'read': filtered.filter(a => a.read_status === 'read'),
+                'archived': filtered.filter(a => a.read_status === 'archived')
+            };
+
+            // Update counts
+            document.getElementById('countUnread').textContent = groups.unread.length;
+            document.getElementById('countReading').textContent = groups.reading.length;
+            document.getElementById('countRead').textContent = groups.read.length;
+            document.getElementById('countArchived').textContent = groups.archived.length;
+
+            // Render each column
+            Object.entries(STATUS_COLUMNS).forEach(([status, colId]) => {
+                const col = document.getElementById(colId);
+                const items = groups[status];
+
+                if (items.length === 0) {
+                    col.innerHTML = '<div class="column-empty">Aucun article</div>';
+                } else {
+                    col.innerHTML = items.map(article => renderCard(article)).join('');
+                }
+            });
+
+            // Update cards list for keyboard nav
+            allCards = document.querySelectorAll('.kanban-card');
+        }
+
+        function renderCard(article) {
+            const score = article.relevance_score || 0;
+            const scoreClass = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
+            const dateStr = new Date(article.published_at || article.created_at)
+                .toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+
+            return `
+                <div class="kanban-card ${selectedCardId === article.id ? 'selected' : ''}"
+                     data-id="${article.id}"
+                     data-status="${article.read_status || 'unread'}"
+                     draggable="true">
+                    <div class="card-source">${article.source_name || 'Source'}</div>
+                    <div class="card-title">
+                        <a href="article-detail.html?id=${article.id}">${article.title}</a>
+                    </div>
+                    <div class="card-meta">
+                        <span>${dateStr}</span>
+                        ${score > 0 ? `<span class="card-score ${scoreClass}">${score}%</span>` : ''}
+                    </div>
+                    <div class="card-actions">
+                        <button class="card-action-btn" onclick="openExternal('${article.id}', '${article.url}')" title="Ouvrir">↗</button>
+                        <button class="card-action-btn ${article.bookmarked ? 'bookmarked' : ''}" onclick="toggleBookmark('${article.id}')" title="Favori">
+                            ${article.bookmarked ? '★' : '☆'}
+                        </button>
+                        <button class="card-action-btn" onclick="archiveArticle('${article.id}')" title="Archiver">📦</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ============================================
+        // DRAG & DROP
+        // ============================================
+
+        function initDragAndDrop() {
+            const cards = document.querySelectorAll('.kanban-card');
+            const columns = document.querySelectorAll('.column-cards');
+
+            cards.forEach(card => {
+                card.addEventListener('dragstart', handleDragStart);
+                card.addEventListener('dragend', handleDragEnd);
+                card.addEventListener('click', () => selectCard(card.dataset.id));
+            });
+
+            columns.forEach(col => {
+                col.addEventListener('dragover', handleDragOver);
+                col.addEventListener('dragleave', handleDragLeave);
+                col.addEventListener('drop', handleDrop);
+            });
+        }
+
+        let draggedCard = null;
+
+        function handleDragStart(e) {
+            draggedCard = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', e.target.dataset.id);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.querySelectorAll('.column-cards').forEach(col => {
+                col.classList.remove('drag-over');
+            });
+            draggedCard = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        async function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+
+            const articleId = e.dataTransfer.getData('text/plain');
+            const column = e.currentTarget.closest('.kanban-column');
+            const newStatus = column.dataset.status;
+
+            await moveArticle(articleId, newStatus);
+        }
+
+        // ============================================
+        // ACTIONS
+        // ============================================
+
+        async function moveArticle(articleId, newStatus) {
+            try {
+                const { error } = await supabaseClient
+                    .from('articles')
+                    .update({
+                        read_status: newStatus,
+                        read_at: ['read', 'archived'].includes(newStatus) ? new Date().toISOString() : null,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', articleId);
+
+                if (error) throw error;
+
+                // Update local state
+                const article = articles.find(a => a.id === articleId);
+                if (article) {
+                    article.read_status = newStatus;
+                    if (['read', 'archived'].includes(newStatus)) {
+                        article.read_at = new Date().toISOString();
+                    }
+                }
+
+                renderKanban();
+                initDragAndDrop();
+                Toast.show(`Article déplacé vers "${getStatusLabel(newStatus)}"`, 'success');
+            } catch (error) {
+                console.error('Move error:', error);
+                Toast.show('Erreur lors du déplacement', 'error');
+            }
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                'unread': 'À lire',
+                'reading': 'En cours',
+                'read': 'Lu',
+                'archived': 'Archivé'
+            };
+            return labels[status] || status;
+        }
+
+        async function toggleBookmark(articleId) {
+            const article = articles.find(a => a.id === articleId);
+            if (!article) return;
+
+            const newValue = !article.bookmarked;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('articles')
+                    .update({ bookmarked: newValue })
+                    .eq('id', articleId);
+
+                if (error) throw error;
+
+                article.bookmarked = newValue;
+                renderKanban();
+                initDragAndDrop();
+                Toast.show(newValue ? 'Ajouté aux favoris' : 'Retiré des favoris', 'success');
+            } catch (error) {
+                console.error('Bookmark error:', error);
+                Toast.show('Erreur', 'error');
+            }
+        }
+
+        async function archiveArticle(articleId) {
+            await moveArticle(articleId, 'archived');
+        }
+
+        function openExternal(articleId, url) {
+            window.open(url, '_blank');
+            // Auto-move to "reading" if unread
+            const article = articles.find(a => a.id === articleId);
+            if (article && (!article.read_status || article.read_status === 'unread')) {
+                moveArticle(articleId, 'reading');
+            }
+        }
+
+        // ============================================
+        // KEYBOARD NAVIGATION
+        // ============================================
+
+        function selectCard(cardId) {
+            selectedCardId = cardId;
+            document.querySelectorAll('.kanban-card').forEach(card => {
+                card.classList.toggle('selected', card.dataset.id === cardId);
+            });
+        }
+
+        function getSelectedIndex() {
+            const cards = Array.from(allCards);
+            return cards.findIndex(c => c.dataset.id === selectedCardId);
+        }
+
+        function navigateCards(direction) {
+            const cards = Array.from(allCards);
+            if (cards.length === 0) return;
+
+            let index = getSelectedIndex();
+
+            if (direction === 'next') {
+                index = index < cards.length - 1 ? index + 1 : 0;
+            } else {
+                index = index > 0 ? index - 1 : cards.length - 1;
+            }
+
+            selectCard(cards[index].dataset.id);
+            cards[index].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function handleKeyboard(e) {
+            // Ignore if typing in input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            const article = articles.find(a => a.id === selectedCardId);
+
+            switch (e.key.toLowerCase()) {
+                case 'j':
+                case 'arrowdown':
+                    e.preventDefault();
+                    navigateCards('next');
+                    break;
+
+                case 'k':
+                case 'arrowup':
+                    e.preventDefault();
+                    navigateCards('prev');
+                    break;
+
+                case 'o':
+                case 'enter':
+                    e.preventDefault();
+                    if (selectedCardId) {
+                        window.location.href = `article-detail.html?id=${selectedCardId}`;
+                    }
+                    break;
+
+                case 'm':
+                    e.preventDefault();
+                    if (article) {
+                        const newStatus = article.read_status === 'read' ? 'unread' : 'read';
+                        moveArticle(selectedCardId, newStatus);
+                    }
+                    break;
+
+                case 'b':
+                    e.preventDefault();
+                    if (selectedCardId) toggleBookmark(selectedCardId);
+                    break;
+
+                case 'a':
+                    e.preventDefault();
+                    if (selectedCardId) archiveArticle(selectedCardId);
+                    break;
+
+                case '1':
+                    e.preventDefault();
+                    if (selectedCardId) moveArticle(selectedCardId, 'unread');
+                    break;
+
+                case '2':
+                    e.preventDefault();
+                    if (selectedCardId) moveArticle(selectedCardId, 'reading');
+                    break;
+
+                case '3':
+                    e.preventDefault();
+                    if (selectedCardId) moveArticle(selectedCardId, 'read');
+                    break;
+
+                case '4':
+                    e.preventDefault();
+                    if (selectedCardId) moveArticle(selectedCardId, 'archived');
+                    break;
+
+                case '?':
+                    e.preventDefault();
+                    toggleShortcutsHelp();
+                    break;
+            }
+        }
+
+        function toggleShortcutsHelp() {
+            document.getElementById('shortcutsHelp').classList.toggle('visible');
+        }
+
+        // ============================================
+        // INIT
+        // ============================================
+
+        document.addEventListener('keydown', handleKeyboard);
+
+        checkAuth().then(session => {
+            if (session) {
+                fetchData();
+            }
+        });
+    </script>
+</body>
+
+</html>

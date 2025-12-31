@@ -42,7 +42,7 @@ _Rien pour l'instant_
 |---------|-----|--------|
 | v0.3.0 - Bibliothèque de Sources | `docs/prd/bibliotheque-sources.md` | **Implémenté** ✅ |
 | v0.4.0 - Intelligence Avancée | `docs/prd/intelligence-avancee.md` | **Implémenté** ✅ |
-| v0.5.0 - Vue Kanban + PWA | `docs/prd/ux-kanban-pwa.md` | A créer |
+| v0.5.0 - Vue Kanban + PWA | `docs/prd/ux-kanban-pwa.md` | **Implémenté** ✅ |
 
 ---
 
@@ -52,6 +52,7 @@ _Rien pour l'instant_
 - [x] v0.2.0 - Tags, TLDR, score pertinence (22/12/2024)
 - [x] v0.3.0 - Bibliothèque de sources (30/12/2024)
 - [x] v0.4.0 - Intelligence avancée (31/12/2024)
+- [x] v0.5.0 - Vue Kanban + PWA (31/12/2024)
 
 ---
 
@@ -87,6 +88,15 @@ _Rien pour l'instant_
   - Prompt "highlights" ajouté à prompts.json
   - PRD créé : docs/prd/intelligence-avancee.md
   - ROADMAP.md mis à jour
+
+- **v0.5.0 Vue Kanban + PWA implémentée** :
+  - `007_kanban_reading.sql` : ajout status 'reading', fonctions RPC Kanban
+  - `kanban.html` : nouvelle page Kanban avec 4 colonnes (À lire, En cours, Lu, Archivé)
+  - Drag & drop natif HTML5 entre colonnes
+  - Raccourcis clavier : j/k navigation, m marquer lu, b favori, a archiver, 1-4 déplacer
+  - PWA : `manifest.json` + `sw.js` (service worker avec cache offline)
+  - Navigation mise à jour sur toutes les pages
+  - PRD créé : docs/prd/ux-kanban-pwa.md
 ---
 
 *Dernière mise à jour : 31 décembre 2024*

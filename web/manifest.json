@@ -1,0 +1,80 @@
+{
+  "name": "Kairos - Veille Intelligente",
+  "short_name": "Kairos",
+  "description": "Plateforme de veille technologique intelligente avec IA",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#fefaf6",
+  "theme_color": "#2c2416",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "news"],
+  "lang": "fr",
+  "dir": "ltr",
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/dashboard.html",
+      "description": "Voir vos articles"
+    },
+    {
+      "name": "Kanban",
+      "url": "/kanban.html",
+      "description": "Vue Kanban"
+    },
+    {
+      "name": "Nouveau Topic",
+      "url": "/topic-setup.html",
+      "description": "Créer un topic"
+    }
+  ]
+}

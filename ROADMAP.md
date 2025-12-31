@@ -81,7 +81,7 @@
 
 ---
 
-## v0.5.0 - Expérience Utilisateur
+## v0.5.0 - Expérience Utilisateur ✅
 
 > Objectif : Améliorer l'interface et le workflow de lecture
 
@@ -137,6 +137,16 @@
 ---
 
 ## Changelog
+
+### v0.5.0 (31/12/2024) ✅
+- Vue Kanban : 4 colonnes (À lire, En cours, Lu, Archivé) avec drag & drop
+- Nouveau statut 'reading' dans l'enum read_status_type
+- Raccourcis clavier : j/k (nav), m (lu), b (favori), a (archiver), 1-4 (déplacer)
+- PWA : manifest.json + service worker avec cache offline
+- Page installable sur mobile/desktop
+- Navigation mise à jour avec lien Kanban sur toutes les pages
+- Migration SQL `007_kanban_reading.sql`
+- PRD : `docs/prd/ux-kanban-pwa.md`
 
 ### v0.4.0 (31/12/2024) ✅
 - Detection de tendances : widget affichant les tags trending (24h)
