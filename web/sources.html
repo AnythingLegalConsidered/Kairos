@@ -17,6 +17,11 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script src="toast.js"></script>
+    <script>
+        // Initialize Supabase client (needed before auth-menu.js)
+        const { url, anonKey, options } = window.KairosConfig.getSupabaseConfig();
+        const supabase = window.supabase.createClient(url, anonKey, options);
+    </script>
     <style>
         .sources-header {
             text-align: center;
