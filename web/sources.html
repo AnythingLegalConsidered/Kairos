@@ -12,15 +12,17 @@
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c2416">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon.svg">
     <script src="theme.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script src="toast.js"></script>
     <script>
-        // Initialize Supabase client (needed before auth-menu.js)
-        const { url, anonKey, options } = window.KairosConfig.getSupabaseConfig();
-        const supabase = window.supabase.createClient(url, anonKey, options);
+        // Initialize Supabase client (global for auth-menu.js)
+        (function() {
+            const { url, anonKey, options } = window.KairosConfig.getSupabaseConfig();
+            window.supabaseClient = window.supabase.createClient(url, anonKey, options);
+        })();
     </script>
     <style>
         .sources-header {
@@ -460,6 +462,9 @@
 
     <script src="auth-menu.js"></script>
     <script>
+        // Use supabaseClient from window (set in head)
+        // Note: 'supabase' is reserved by the CDN, use supabaseClient instead
+
         // State
         let allSources = [];
         let userFavorites = new Set();
@@ -491,7 +496,7 @@
         // Load all sources
         async function loadSources() {
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('rss_sources')
                     .select('*')
                     .eq('active', true)
@@ -511,10 +516,10 @@
         // Load user favorites
         async function loadUserFavorites() {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session } } = await supabaseClient.auth.getSession();
                 if (!session) return;
 
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('user_favorite_sources')
                     .select('source_id')
                     .eq('user_id', session.user.id);
@@ -655,13 +660,13 @@
         // Toggle favorite
         async function toggleFavorite(sourceId) {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session } } = await supabaseClient.auth.getSession();
                 if (!session) {
                     showToast('Connectez-vous pour ajouter des favoris', 'warning');
                     return;
                 }
 
-                const { data, error } = await supabase.rpc('toggle_favorite_source', {
+                const { data, error } = await supabaseClient.rpc('toggle_favorite_source', {
                     p_user_id: session.user.id,
                     p_source_id: sourceId
                 });
@@ -694,13 +699,13 @@
             modal.classList.add('visible');
 
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session } } = await supabaseClient.auth.getSession();
                 if (!session) {
                     topicList.innerHTML = '<p style="color: var(--text-secondary);">Connectez-vous pour ajouter à un topic</p>';
                     return;
                 }
 
-                const { data: topics, error } = await supabase
+                const { data: topics, error } = await supabaseClient
                     .from('topics')
                     .select('id, name')
                     .eq('user_id', session.user.id)
@@ -746,7 +751,7 @@
 
             try {
                 // Get current topic
-                const { data: topic, error: fetchError } = await supabase
+                const { data: topic, error: fetchError } = await supabaseClient
                     .from('topics')
                     .select('rss_feeds')
                     .eq('id', selectedTopicId)
@@ -763,7 +768,7 @@
                 }
 
                 // Add source URL to feeds
-                const { error: updateError } = await supabase
+                const { error: updateError } = await supabaseClient
                     .from('topics')
                     .update({ rss_feeds: [...currentFeeds, selectedSourceUrl] })
                     .eq('id', selectedTopicId);
