@@ -32,5 +32,10 @@ window.handleLogout = async function() {
 
 // Initialize on page load
 if (typeof supabase !== 'undefined') {
-    document.addEventListener('DOMContentLoaded', initAuthMenu);
+    // If DOM already loaded, call directly; otherwise wait for event
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAuthMenu);
+    } else {
+        initAuthMenu();
+    }
 }
