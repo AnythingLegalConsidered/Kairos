@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS public.articles (
 
     -- Source information
     source_url TEXT,  -- URL of the RSS feed
-    source_name VARCHAR(200),  -- Name of the source
+    source VARCHAR(200),  -- Name of the source
 
     -- Article content
     title TEXT NOT NULL,

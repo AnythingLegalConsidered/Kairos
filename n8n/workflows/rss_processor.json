@@ -114,7 +114,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser les articles RSS et preparer les donnees\nconst items = $input.all();\nconst feedInfo = $('Extract Feeds').first().json;\nconst results = [];\n\nfor (const item of items) {\n  if (!item.json.link || !item.json.title) continue;\n\n  const title = item.json.title.trim();\n  let content = item.json.content || item.json.description || '';\n  content = content.replace(/<[^>]*>/g, ' ')\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&amp;/g, '&')\n    .replace(/&lt;/g, '<')\n    .replace(/&gt;/g, '>')\n    .replace(/&quot;/g, '\"')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .substring(0, 3000);\n\n  results.push({\n    json: {\n      topic_id: feedInfo.topic_id,\n      topic_name: feedInfo.topic_name,\n      user_id: feedInfo.user_id,\n      keywords_fr: feedInfo.keywords_fr,\n      keywords_en: feedInfo.keywords_en,\n      feed_url: feedInfo.feed_url,\n      title: title,\n      url: item.json.link,\n      content_rss: content,\n      author: item.json.creator || item.json.author || null,\n      published_at: item.json.pubDate || item.json.isoDate || new Date().toISOString(),\n      image_url: item.json.enclosure?.url || null,\n      source_name: feedInfo.feed_url.match(/https?:\\/\\/([^/]+)/)?.[1] || 'Unknown'\n    }\n  });\n}\n\n// Limiter a 10 articles par feed\nreturn results.slice(0, 10);"
+        "jsCode": "// Parser les articles RSS et preparer les donnees\nconst items = $input.all();\nconst feedInfo = $('Extract Feeds').first().json;\nconst results = [];\n\nfor (const item of items) {\n  if (!item.json.link || !item.json.title) continue;\n\n  const title = item.json.title.trim();\n  let content = item.json.content || item.json.description || '';\n  content = content.replace(/<[^>]*>/g, ' ')\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&amp;/g, '&')\n    .replace(/&lt;/g, '<')\n    .replace(/&gt;/g, '>')\n    .replace(/&quot;/g, '\"')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .substring(0, 3000);\n\n  results.push({\n    json: {\n      topic_id: feedInfo.topic_id,\n      topic_name: feedInfo.topic_name,\n      user_id: feedInfo.user_id,\n      keywords_fr: feedInfo.keywords_fr,\n      keywords_en: feedInfo.keywords_en,\n      feed_url: feedInfo.feed_url,\n      title: title,\n      url: item.json.link,\n      content_rss: content,\n      author: item.json.creator || item.json.author || null,\n      published_at: item.json.pubDate || item.json.isoDate || new Date().toISOString(),\n      image_url: item.json.enclosure?.url || null,\n      source: feedInfo.feed_url.match(/https?:\\/\\/([^/]+)/)?.[1] || 'Unknown'\n    }\n  });\n}\n\n// Limiter a 10 articles par feed\nreturn results.slice(0, 10);"
       },
       "id": "parse-articles",
       "name": "Parse Articles",
@@ -212,7 +212,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Combiner les donnees de l'article avec le contenu Jina\nconst articleData = $('Loop Articles').first().json;\nconst jinaResponse = $input.first().json;\n\n// Utiliser le contenu Jina si disponible, sinon le contenu RSS\nlet content = jinaResponse.data || articleData.content_rss || '';\ncontent = content.substring(0, 8000); // Limiter la taille\n\n// Combiner les mots-cles\nconst keywords = [\n  ...(articleData.keywords_fr || []),\n  ...(articleData.keywords_en || [])\n].join(', ');\n\nreturn [{\n  json: {\n    topic_id: articleData.topic_id,\n    topic_name: articleData.topic_name,\n    user_id: articleData.user_id,\n    keywords: keywords,\n    feed_url: articleData.feed_url,\n    title: articleData.title,\n    url: articleData.url,\n    content: content,\n    author: articleData.author,\n    published_at: articleData.published_at,\n    image_url: articleData.image_url,\n    source_name: articleData.source_name\n  }\n}];"
+        "jsCode": "// Combiner les donnees de l'article avec le contenu Jina\nconst articleData = $('Loop Articles').first().json;\nconst jinaResponse = $input.first().json;\n\n// Utiliser le contenu Jina si disponible, sinon le contenu RSS\nlet content = jinaResponse.data || articleData.content_rss || '';\ncontent = content.substring(0, 8000); // Limiter la taille\n\n// Combiner les mots-cles\nconst keywords = [\n  ...(articleData.keywords_fr || []),\n  ...(articleData.keywords_en || [])\n].join(', ');\n\nreturn [{\n  json: {\n    topic_id: articleData.topic_id,\n    topic_name: articleData.topic_name,\n    user_id: articleData.user_id,\n    keywords: keywords,\n    feed_url: articleData.feed_url,\n    title: articleData.title,\n    url: articleData.url,\n    content: content,\n    author: articleData.author,\n    published_at: articleData.published_at,\n    image_url: articleData.image_url,\n    source: articleData.source\n  }\n}];"
       },
       "id": "merge-content",
       "name": "Merge Content",
@@ -243,7 +243,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extraire le resume et preparer pour la pertinence\nconst articleData = $('Merge Content').first().json;\nconst summaryResponse = $input.first().json;\n\nlet summary = summaryResponse?.response || '';\nsummary = summary.trim().substring(0, 1000);\n\nreturn [{\n  json: {\n    topic_id: articleData.topic_id,\n    topic_name: articleData.topic_name,\n    user_id: articleData.user_id,\n    keywords: articleData.keywords,\n    feed_url: articleData.feed_url,\n    title: articleData.title,\n    url: articleData.url,\n    content: articleData.content,\n    author: articleData.author,\n    published_at: articleData.published_at,\n    image_url: articleData.image_url,\n    source_name: articleData.source_name,\n    summary: summary\n  }\n}];"
+        "jsCode": "// Extraire le resume et preparer pour la pertinence\nconst articleData = $('Merge Content').first().json;\nconst summaryResponse = $input.first().json;\n\nlet summary = summaryResponse?.response || '';\nsummary = summary.trim().substring(0, 1000);\n\nreturn [{\n  json: {\n    topic_id: articleData.topic_id,\n    topic_name: articleData.topic_name,\n    user_id: articleData.user_id,\n    keywords: articleData.keywords,\n    feed_url: articleData.feed_url,\n    title: articleData.title,\n    url: articleData.url,\n    content: articleData.content,\n    author: articleData.author,\n    published_at: articleData.published_at,\n    image_url: articleData.image_url,\n    source: articleData.source,\n    summary: summary\n  }\n}];"
       },
       "id": "extract-summary",
       "name": "Extract Summary",
@@ -274,7 +274,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extraire le score de pertinence\nconst articleData = $('Extract Summary').first().json;\nconst relevanceResponse = $input.first().json;\n\nlet relevanceScore = 50; // Valeur par defaut\nif (relevanceResponse?.response) {\n  const match = relevanceResponse.response.match(/\\d+/);\n  if (match) {\n    relevanceScore = Math.min(100, Math.max(0, parseInt(match[0])));\n  }\n}\n\nreturn [{\n  json: {\n    topic_id: articleData.topic_id,\n    topic_name: articleData.topic_name,\n    user_id: articleData.user_id,\n    keywords: articleData.keywords,\n    feed_url: articleData.feed_url,\n    title: articleData.title,\n    url: articleData.url,\n    content: articleData.content,\n    author: articleData.author,\n    published_at: articleData.published_at,\n    image_url: articleData.image_url,\n    source_name: articleData.source_name,\n    summary: articleData.summary,\n    relevance_score: relevanceScore\n  }\n}];"
+        "jsCode": "// Extraire le score de pertinence\nconst articleData = $('Extract Summary').first().json;\nconst relevanceResponse = $input.first().json;\n\nlet relevanceScore = 50; // Valeur par defaut\nif (relevanceResponse?.response) {\n  const match = relevanceResponse.response.match(/\\d+/);\n  if (match) {\n    relevanceScore = Math.min(100, Math.max(0, parseInt(match[0])));\n  }\n}\n\nreturn [{\n  json: {\n    topic_id: articleData.topic_id,\n    topic_name: articleData.topic_name,\n    user_id: articleData.user_id,\n    keywords: articleData.keywords,\n    feed_url: articleData.feed_url,\n    title: articleData.title,\n    url: articleData.url,\n    content: articleData.content,\n    author: articleData.author,\n    published_at: articleData.published_at,\n    image_url: articleData.image_url,\n    source: articleData.source,\n    summary: articleData.summary,\n    relevance_score: relevanceScore\n  }\n}];"
       },
       "id": "extract-relevance",
       "name": "Extract Relevance",
@@ -305,7 +305,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extraire les tags et preparer les donnees finales\nconst articleData = $('Extract Relevance').first().json;\nconst tagsResponse = $input.first().json;\n\n// Parser les tags\nlet tags = [];\nif (tagsResponse?.response) {\n  tags = tagsResponse.response\n    .split(',')\n    .map(t => t.trim().toLowerCase().replace(/[^a-z0-9-]/g, ''))\n    .filter(t => t.length > 0 && t.length < 30)\n    .slice(0, 5);\n}\n\nreturn [{\n  json: {\n    topic_id: articleData.topic_id,\n    user_id: articleData.user_id,\n    title: articleData.title,\n    url: articleData.url,\n    content: articleData.content,\n    summary: articleData.summary,\n    source: articleData.source_name,\n    published_date: articleData.published_at,\n    relevance_score: articleData.relevance_score,\n    tags: tags,\n    read_status: 'unread',\n    bookmarked: false\n  }\n}];"
+        "jsCode": "// Extraire les tags et preparer les donnees finales\nconst articleData = $('Extract Relevance').first().json;\nconst tagsResponse = $input.first().json;\n\n// Parser les tags\nlet tags = [];\nif (tagsResponse?.response) {\n  tags = tagsResponse.response\n    .split(',')\n    .map(t => t.trim().toLowerCase().replace(/[^a-z0-9-]/g, ''))\n    .filter(t => t.length > 0 && t.length < 30)\n    .slice(0, 5);\n}\n\nreturn [{\n  json: {\n    topic_id: articleData.topic_id,\n    user_id: articleData.user_id,\n    title: articleData.title,\n    url: articleData.url,\n    content: articleData.content,\n    summary: articleData.summary,\n    source: articleData.source,\n    published_date: articleData.published_at,\n    relevance_score: articleData.relevance_score,\n    tags: tags,\n    read_status: 'unread',\n    bookmarked: false\n  }\n}];"
       },
       "id": "extract-tags",
       "name": "Extract Tags",
@@ -623,5 +623,6 @@
   },
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "active": true
 }

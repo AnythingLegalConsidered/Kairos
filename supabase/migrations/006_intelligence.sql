@@ -72,7 +72,7 @@ BEGIN
     WITH article_tags AS (
         SELECT
             unnest(a.tags) AS tag,
-            a.source_name,
+            a.source,
             a.topic_id
         FROM public.articles a
         JOIN public.topics t ON a.topic_id = t.id
@@ -83,7 +83,7 @@ BEGIN
         SELECT
             at.tag,
             COUNT(*) AS occurrence_count,
-            COUNT(DISTINCT at.source_name) AS source_count
+            COUNT(DISTINCT at.source) AS source_count
         FROM article_tags at
         WHERE at.tag IS NOT NULL AND at.tag != ''
         GROUP BY at.tag
@@ -114,7 +114,7 @@ RETURNS TABLE (
     title TEXT,
     summary TEXT,
     url TEXT,
-    source_name VARCHAR,
+    source VARCHAR,
     published_at TIMESTAMP WITH TIME ZONE,
     relevance_score INTEGER,
     tags TEXT[],
@@ -123,12 +123,12 @@ RETURNS TABLE (
 ) AS $$
 DECLARE
     source_tags TEXT[];
-    source_source_name VARCHAR;
+    source_source VARCHAR;
     source_topic_user_id UUID;
 BEGIN
     -- Get the source article info
-    SELECT a.tags, a.source_name, t.user_id
-    INTO source_tags, source_source_name, source_topic_user_id
+    SELECT a.tags, a.source, t.user_id
+    INTO source_tags, source_source, source_topic_user_id
     FROM public.articles a
     JOIN public.topics t ON a.topic_id = t.id
     WHERE a.id = article_uuid AND t.user_id = auth.uid();
@@ -144,7 +144,7 @@ BEGIN
         a.title,
         a.summary,
         a.url,
-        a.source_name,
+        a.source,
         a.published_at,
         a.relevance_score,
         a.tags,
@@ -154,7 +154,7 @@ BEGIN
                 1
             ), 0) * 2
             +
-            CASE WHEN a.source_name = source_source_name THEN 1 ELSE 0 END
+            CASE WHEN a.source = source_source THEN 1 ELSE 0 END
         )::INTEGER AS similarity_score,
         ARRAY(SELECT unnest(a.tags) INTERSECT SELECT unnest(source_tags)) AS common_tags
     FROM public.articles a
@@ -169,7 +169,7 @@ BEGIN
             1
         ), 0) * 2
         +
-        CASE WHEN a.source_name = source_source_name THEN 1 ELSE 0 END
+        CASE WHEN a.source = source_source THEN 1 ELSE 0 END
     ) > 0
     ORDER BY (
         COALESCE(array_length(
@@ -177,7 +177,7 @@ BEGIN
             1
         ), 0) * 2
         +
-        CASE WHEN a.source_name = source_source_name THEN 1 ELSE 0 END
+        CASE WHEN a.source = source_source THEN 1 ELSE 0 END
     ) DESC, a.published_at DESC
     LIMIT limit_count;
 END;

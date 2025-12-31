@@ -69,7 +69,7 @@ CREATE OR REPLACE FUNCTION get_kanban_articles(
 RETURNS TABLE (
     id UUID,
     title TEXT,
-    source_name VARCHAR(200),
+    source VARCHAR(200),
     summary TEXT,
     url TEXT,
     relevance_score INTEGER,
@@ -84,7 +84,7 @@ BEGIN
     SELECT
         a.id,
         a.title,
-        a.source_name,
+        a.source,
         a.summary,
         a.url,
         a.relevance_score,
