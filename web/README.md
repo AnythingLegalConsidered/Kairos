@@ -1,34 +1,51 @@
 # web/ - Frontend Vanilla JS
 
 > Interface utilisateur de Kairos - HTML/CSS/JS sans framework.
+>
+> **Version:** 0.5.0 | **Derniere MAJ:** 31/12/2024
+
+## En un coup d'oeil
+
+- **8 pages HTML** : Landing, Login, Dashboard, Topics, Articles, Sources, Kanban, Reset
+- **6 modules JS** : config, auth-menu, toast, theme, intelligence, sw (PWA)
+- **PWA** : Installable + mode offline
+- **Theme** : Clair/Sombre avec persistence
 
 ## Structure
 
 ```
 web/
-├── index.html          # Page d'accueil / landing
-├── login.html          # Connexion et inscription
+├── index.html          # Landing page
+├── login.html          # Connexion / inscription
 ├── reset-password.html # Reinitialisation mot de passe
-├── dashboard.html      # Liste des articles avec filtres
-├── topic-setup.html    # Creation/edition de topics
-├── article-detail.html # Vue detaillee d'un article
-├── config.js           # Configuration Supabase (URLs, cles)
-├── auth-menu.js        # Composant menu utilisateur
-├── theme.js            # Gestion du mode sombre
-├── toast.js            # Notifications toast
-└── style.css           # Styles globaux + variables CSS
+├── dashboard.html      # Liste articles + filtres + export (2346 lignes)
+├── topic-setup.html    # CRUD topics + selection RSS
+├── article-detail.html # Vue detaillee + highlights + similaires (823 lignes)
+├── sources.html        # Bibliotheque 114 sources RSS (v0.3)
+├── kanban.html         # Vue Kanban drag & drop (v0.5)
+├── config.js           # Configuration Supabase (local/cloud)
+├── auth-menu.js        # Menu utilisateur + logout
+├── toast.js            # Notifications toast (180 lignes)
+├── theme.js            # Mode sombre + persistence (111 lignes)
+├── intelligence.js     # Tendances + similaires + highlights (v0.4)
+├── sw.js               # Service Worker PWA (v0.5)
+├── manifest.json       # PWA manifest (v0.5)
+├── style.css           # Styles globaux + variables CSS
+└── icons/              # Icones PWA 192x512
 ```
 
 ## Pages
 
-| Page | URL | Description |
-|------|-----|-------------|
-| Accueil | `/index.html` | Landing page, presentation |
-| Login | `/login.html` | Authentification Supabase |
-| Reset Password | `/reset-password.html` | Reinitialisation MDP |
-| Dashboard | `/dashboard.html` | Liste articles + filtres + export |
-| Topic Setup | `/topic-setup.html` | CRUD topics + feeds RSS |
-| Article Detail | `/article-detail.html?id=...` | Vue complete article |
+| Page | URL | Description | Version |
+|------|-----|-------------|---------|
+| Accueil | `/index.html` | Landing page, presentation | v0.1 |
+| Login | `/login.html` | Authentification Supabase | v0.1 |
+| Reset Password | `/reset-password.html` | Reinitialisation MDP | v0.1 |
+| Dashboard | `/dashboard.html` | Articles + filtres + tendances + export | v0.1+ |
+| Topic Setup | `/topic-setup.html` | CRUD topics + feeds RSS | v0.1 |
+| Article Detail | `/article-detail.html?id=...` | Detail + highlights + similaires | v0.1+ |
+| **Sources** | `/sources.html` | Bibliotheque 114 sources RSS | **v0.3** |
+| **Kanban** | `/kanban.html` | Vue 4 colonnes + drag & drop | **v0.5** |
 
 ## Architecture frontend
 
@@ -44,13 +61,16 @@ const SUPABASE_ANON_KEY = 'eyJ...';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 ```
 
-### Composants partages
+### Modules JavaScript partages
 
-| Fichier | Description |
-|---------|-------------|
-| `auth-menu.js` | Menu utilisateur (email + logout) |
-| `theme.js` | Toggle mode sombre + persistence |
-| `toast.js` | Notifications non-bloquantes |
+| Fichier | Lignes | Description |
+|---------|--------|-------------|
+| `config.js` | ~20 | Configuration Supabase (URL, cles, client) |
+| `auth-menu.js` | ~80 | Menu utilisateur (email + logout + redirect) |
+| `toast.js` | 180 | Notifications toast (success/error/warning/info) |
+| `theme.js` | 111 | Toggle mode sombre + localStorage + preference systeme |
+| `intelligence.js` | 197 | Tendances, similaires, highlights, scoring perso (v0.4) |
+| `sw.js` | ~100 | Service Worker: cache network-first, offline (v0.5) |
 
 ## Design System
 
@@ -77,27 +97,54 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 ```
 
-## Fonctionnalites
+## Fonctionnalites par page
 
-### Dashboard
-- Filtrage par topic, statut, sentiment
+### Dashboard (v0.1+)
+- Filtrage par topic, statut, sentiment, tags
 - Recherche full-text (debounced 300ms)
 - Tri par date, pertinence
 - Export CSV/JSON
 - Skeleton loaders pendant chargement
 - Optimistic UI (bookmark, mark as read)
+- **Widget tendances** (v0.4) : tags trending 24h
+- **Badge "Trending"** sur articles populaires
 
-### Topic Setup
+### Topic Setup (v0.1)
 - CRUD complet des topics
 - Gestion des mots-cles FR/EN
-- Ajout de feeds RSS
+- Selection de feeds RSS depuis catalogue
 - Activation/desactivation
 
-### Article Detail
+### Article Detail (v0.1+)
 - Vue complete avec resume IA
-- Score de pertinence (badge colore)
-- Tags IA
+- Score de pertinence (badge colore 0-100)
+- Tags IA automatiques
+- **Highlights** (v0.4) : phrases cles extraites
+- **Articles similaires** (v0.4) : recommandations par tags
 - Actions : bookmark, archive, lien original
+
+### Sources (v0.3)
+- Catalogue de 114 sources RSS (42 FR + 72 EN)
+- Filtres par categorie (8) et langue
+- Recherche par nom
+- Ajouter source a un topic existant
+- Systeme de favoris sources
+
+### Kanban (v0.5)
+- Vue 4 colonnes : A lire, En cours, Lu, Archive
+- Drag & drop HTML5 natif (pas de librairie)
+- Compteurs par colonne
+- **Raccourcis clavier** :
+  - `j/k` : Navigation haut/bas
+  - `m` : Marquer lu
+  - `b` : Bookmarker
+  - `a` : Archiver
+  - `1-4` : Deplacer vers colonne
+
+### PWA (v0.5)
+- Installation sur mobile/desktop
+- Mode offline : articles caches disponibles
+- Service Worker avec strategie network-first
 
 ## Accessibilite
 
@@ -127,6 +174,23 @@ supabase.from('topics').delete().eq('id', id)
 // Articles
 supabase.from('articles').select('*, topics(name)')
 supabase.from('articles').update({ bookmarked: true }).eq('id', id)
+
+// Sources (v0.3)
+supabase.from('rss_sources').select('*')
+supabase.from('user_favorite_sources').insert({ source_id })
+```
+
+### Fonctions RPC (v0.4+)
+```javascript
+// Tendances
+supabase.rpc('get_trending_tags', { hours_ago: 24 })
+
+// Articles similaires
+supabase.rpc('get_similar_articles', { article_id, max_results: 5 })
+
+// Kanban (v0.5)
+supabase.rpc('get_kanban_articles', { p_topic_id })
+supabase.rpc('move_article_status', { p_article_id, p_new_status })
 ```
 
 ## Developpement local

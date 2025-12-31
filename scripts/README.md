@@ -1,6 +1,15 @@
 # scripts/ - Scripts utilitaires
 
 > Scripts d'installation, de maintenance et de test pour Kairos.
+>
+> **Version:** 0.5.0 | **Derniere MAJ:** 31/12/2024
+
+## En un coup d'oeil
+
+- **8 scripts shell** : setup, start, stop, reset, test, import (Windows + Unix)
+- **4 scripts Node.js** : reprocess, fix_encoding, fix_emojis, create-workflows
+- **2 scripts SQL** : init-db, test-rls
+- **Prerequis** : Docker, Node.js (pour scripts JS)
 
 ## Scripts disponibles
 

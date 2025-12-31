@@ -11,6 +11,8 @@
 
 **Stack technique** : Vanilla JS (frontend) + Supabase (backend) + n8n (orchestration) + Ollama (IA locale)
 
+**Version actuelle** : 0.5.0 (31/12/2024)
+
 ## Architecture
 
 ```
@@ -25,15 +27,20 @@ Frontend (Vanilla JS)  -->  Supabase (PostgreSQL + Auth + REST API)
 ```
 Kairos/
 ├── CLAUDE.md           # CE FICHIER - Instructions pour Claude Code
-├── docker/             # Infrastructure Docker (docker-compose, kong, nginx)
-├── supabase/           # Backend: migrations SQL, fonctions Edge, config
-├── n8n/                # Workflows d'orchestration et prompts IA
-├── web/                # Frontend: pages HTML, CSS, JS (Vanilla)
-├── scripts/            # Scripts utilitaires (setup, tests, maintenance)
-├── docs/               # Documentation technique et rapports de tests
-├── PLAN_PROJET.md      # Plan detaille du projet avec phases et changelog
-└── ROADMAP.md          # Evolutions futures planifiees (v0.2 a v1.0)
+├── CHANGELOG.md        # Historique des modifications (A MAINTENIR)
+├── inbox.md            # Gestion des taches + notes de session
+├── docker/             # Infrastructure Docker (9 containers)
+├── supabase/           # Backend: 7 migrations SQL, Edge Functions
+├── n8n/                # Workflows (3) et prompts IA (4)
+├── web/                # Frontend: 8 pages HTML, 6 modules JS
+├── scripts/            # Scripts utilitaires (14 fichiers)
+├── tests/              # Tests unitaires Vitest
+├── docs/               # Documentation + PRDs
+├── PLAN_PROJET.md      # Plan detaille du projet avec phases
+└── ROADMAP.md          # Evolutions futures (v0.6 a v1.0)
 ```
+
+> **Chaque dossier a son README.md** avec section "En un coup d'oeil"
 
 ## Conventions de code
 
@@ -56,19 +63,21 @@ Kairos/
 
 ## Base de donnees - Tables principales
 
-| Table | Description | Cle |
-|-------|-------------|-----|
-| `topics` | Sujets de veille avec mots-cles et feeds RSS | user_id |
-| `articles` | Articles recuperes et analyses par l'IA | topic_id |
-| `rss_sources` | Catalogue global de sources RSS | - |
-| `user_preferences` | Preferences utilisateur (theme, notifs) | user_id |
-| `notification_logs` | Historique des notifications envoyees | - |
+| Table | Description | Cle | Version |
+|-------|-------------|-----|---------|
+| `topics` | Sujets de veille avec mots-cles et feeds RSS | user_id | v0.1 |
+| `articles` | Articles recuperes et analyses par l'IA | topic_id | v0.1 |
+| `rss_sources` | Catalogue global de 114 sources RSS | - | v0.1 |
+| `user_preferences` | Preferences utilisateur (theme, notifs) | user_id | v0.1 |
+| `notification_logs` | Historique des notifications envoyees | - | v0.1 |
+| `user_favorite_sources` | Favoris sources par utilisateur | user_id | v0.3 |
+| `user_tag_preferences` | Preferences tags pour scoring | user_id | v0.4 |
 
 ## Types PostgreSQL
 
 ```sql
 sentiment_type: 'positive' | 'neutral' | 'negative'
-read_status_type: 'unread' | 'read' | 'archived'
+read_status_type: 'unread' | 'read' | 'archived' | 'reading'  -- v0.5
 source_category: 'technology' | 'science' | 'business' | 'security' | 'ai_ml' | 'programming' | 'design' | 'startup' | 'other'
 ```
 
@@ -173,8 +182,66 @@ npm run lint      # Verifier le code
 npm run lint:fix  # Corriger automatiquement
 ```
 
+---
+
+## Maintenir le contexte du projet
+
+> **IMPORTANT** : Apres chaque modification significative, mettre a jour la documentation.
+
+### Ou documenter les changements ?
+
+| Type de changement | Fichier a mettre a jour |
+|--------------------|------------------------|
+| Nouvelle feature/version | `CHANGELOG.md` (obligatoire) |
+| Nouveau fichier dans un dossier | `{dossier}/README.md` |
+| Nouvelle migration SQL | `supabase/README.md` |
+| Nouveau workflow/prompt | `n8n/README.md` |
+| Nouvelle page frontend | `web/README.md` |
+| Nouvelle tache a faire | `inbox.md` |
+| Feature majeure planifiee | `ROADMAP.md` + PRD |
+
+### Checklist apres modification
+
+```markdown
+- [ ] CHANGELOG.md mis a jour (section Added/Changed/Fixed)
+- [ ] README du dossier concerne mis a jour si necessaire
+- [ ] Version dans package.json incrementee si release
+- [ ] inbox.md: notes de session ajoutees
+```
+
+### Format CHANGELOG.md
+
+```markdown
+## [X.Y.Z] - YYYY-MM-DD
+
+### Added
+- **Nom feature** : Description courte
+
+### Changed
+- Description du changement
+
+### Files Modified
+- `path/to/file.ext` (cree|modifie)
+```
+
+### Exemple concret
+
+Si tu ajoutes une nouvelle page `stats.html` :
+
+1. **Creer le fichier** : `web/stats.html`
+2. **CHANGELOG.md** :
+   ```markdown
+   ### Added
+   - **Statistiques** : Nouvelle page stats.html avec graphiques
+   ```
+3. **web/README.md** : Ajouter dans la table des pages
+4. **inbox.md** : Noter dans "Notes de session"
+
+---
+
 ## Liens vers documentation detaillee
 
+- Historique modifications: [CHANGELOG.md](./CHANGELOG.md)
 - Gestion des taches: [inbox.md](./inbox.md)
 - Template PRD: [docs/prd/TEMPLATE.md](./docs/prd/TEMPLATE.md)
 - Architecture complete: [PLAN_PROJET.md](./PLAN_PROJET.md)

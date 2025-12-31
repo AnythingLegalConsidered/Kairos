@@ -1,6 +1,15 @@
 # docker/ - Infrastructure Docker
 
 > Configuration Docker Compose pour l'environnement de developpement local Kairos.
+>
+> **Version:** 0.5.0 | **Derniere MAJ:** 31/12/2024
+
+## En un coup d'oeil
+
+- **9 containers** : PostgreSQL, GoTrue, PostgREST, Kong, Studio, Meta, n8n, Ollama, Nginx
+- **3 volumes** : supabase-db-data, n8n-data, ollama-data
+- **Ports** : 3000 (web), 5678 (n8n), 8000 (API), 3002 (Studio), 11434 (Ollama)
+- **Prerequis** : Docker 20.10+, 8 Go RAM, 10 Go disque
 
 ## Fichiers
 
@@ -100,3 +109,28 @@ ollama:
 - Docker Compose v2+
 - 8 Go de RAM minimum
 - 10 Go d'espace disque (dont 3.3 Go pour Gemma)
+
+## Acces rapide
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Frontend | http://localhost:3000 | - |
+| n8n | http://localhost:5678 | admin / kairos2024 |
+| Supabase Studio | http://localhost:3002 | - |
+| API REST | http://localhost:8000/rest/v1/ | JWT requis |
+| Ollama | http://localhost:11434 | - |
+
+## Demarrage rapide
+
+```bash
+# Premier lancement (telecharge Gemma ~3.3 Go)
+cd docker
+cp .env.example .env
+docker-compose up -d
+
+# Verifier les services
+docker-compose ps
+
+# Voir les logs
+docker-compose logs -f
+```

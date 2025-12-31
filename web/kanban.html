@@ -2,6 +2,7 @@
 <html lang="fr">
 
 <head>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kairos - Vue Kanban</title>
@@ -706,14 +707,20 @@
         let draggedCard = null;
 
         function handleDragStart(e) {
-            draggedCard = e.target;
-            e.target.classList.add('dragging');
+            const card = e.target.closest('.kanban-card');
+            if (!card) return;
+
+            draggedCard = card;
+            card.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', e.target.dataset.id);
+            e.dataTransfer.setData('text/plain', card.dataset.id);
         }
 
         function handleDragEnd(e) {
-            e.target.classList.remove('dragging');
+            const card = e.target.closest('.kanban-card');
+            if (card) {
+                card.classList.remove('dragging');
+            }
             document.querySelectorAll('.column-cards').forEach(col => {
                 col.classList.remove('drag-over');
             });
@@ -737,6 +744,12 @@
             const articleId = e.dataTransfer.getData('text/plain');
             const column = e.currentTarget.closest('.kanban-column');
             const newStatus = column.dataset.status;
+
+            // Validate UUID format before API call
+            if (!articleId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(articleId)) {
+                console.error('Invalid article ID:', articleId);
+                return;
+            }
 
             await moveArticle(articleId, newStatus);
         }

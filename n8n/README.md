@@ -1,18 +1,28 @@
 # n8n/ - Workflows d'orchestration
 
 > Workflows n8n pour l'automatisation du traitement RSS et IA.
+>
+> **Version:** 0.5.0 | **Derniere MAJ:** 31/12/2024
+
+## En un coup d'oeil
+
+- **3 workflows** : RSS Processor, Cleanup, Notifications
+- **4 prompts IA** : Resume, Pertinence, Tags, Highlights
+- **Modele** : Gemma 3:4b (Ollama local)
+- **Declenchement** : Cron + Webhooks
 
 ## Structure
 
 ```
 n8n/
 ├── README.md           # CE FICHIER
-├── prompts.json        # Prompts IA pour Gemma (resume, pertinence, tags)
-├── exemple             # Exemple de workflow (reference)
+├── prompts.json        # Prompts IA (summary, relevance, tags, highlights)
+├── exemple/            # Exemple de workflow (reference)
 └── workflows/
-    ├── rss_processor.json      # Workflow principal
+    ├── rss_processor.json      # Workflow principal (627 lignes)
     ├── rss_processor_test.json # Version de test
-    └── cleanup.json            # Nettoyage des vieux articles
+    ├── cleanup.json            # Nettoyage articles > 30j (175 lignes)
+    └── notifications.json      # Digest email (desactive)
 ```
 
 ## Workflows disponibles
@@ -237,11 +247,12 @@ Les workflows ne se synchronisent pas automatiquement avec les fichiers JSON.
 
 Le fichier `prompts.json` centralise tous les prompts utilises par l'IA :
 
-| Prompt | Description | Output |
-|--------|-------------|--------|
-| `summary` | Resume d'article en 2-3 phrases | Texte francais |
-| `relevance` | Score de pertinence | Nombre 0-100 |
-| `tags` | Generation de tags | Liste separee par virgules |
+| Prompt | Description | Output | Version |
+|--------|-------------|--------|---------|
+| `summary` | Resume d'article en 2-3 phrases | Texte francais | v0.1 |
+| `relevance` | Score de pertinence | Nombre 0-100 | v0.1 |
+| `tags` | Generation de tags | Liste separee par virgules | v0.2 |
+| `highlights` | Phrases cles importantes | Liste de phrases | v0.4 |
 
 ### Parametres du modele
 
@@ -260,6 +271,27 @@ Le fichier `prompts.json` centralise tous les prompts utilises par l'IA :
 2. Mettre a jour le noeud correspondant dans le workflow n8n
 3. Tester avec quelques articles
 4. Exporter le workflow modifie
+
+### Pipeline IA complet (v0.4)
+
+```
+Article brut
+    |
+    v
+[Summary] --> Resume 2-3 phrases
+    |
+    v
+[Relevance] --> Score 0-100
+    |
+    v
+[Tags] --> 3-5 mots-cles
+    |
+    v
+[Highlights] --> 2-3 phrases importantes
+    |
+    v
+Article enrichi dans Supabase
+```
 
 ---
 
