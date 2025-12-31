@@ -277,7 +277,7 @@ BEGIN
     RETURN QUERY
     SELECT
         t.id AS topic_id,
-        t.name AS topic_name,
+        t.topic_name AS topic_name,
         t.user_id,
         t.keywords_fr,
         t.keywords_en,
