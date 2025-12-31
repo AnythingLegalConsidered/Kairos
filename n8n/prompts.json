@@ -34,12 +34,22 @@
         "temperature": 0.3,
         "num_predict": 50
       }
+    },
+    "highlights": {
+      "description": "Extraction des phrases cles de l'article",
+      "system": "Tu es un expert en extraction d'informations. Tu identifies les 2-3 phrases les plus importantes d'un article.",
+      "template": "Extrait les 2-3 phrases les plus importantes de cet article. Ces phrases doivent capturer les informations essentielles.\n\nRegles:\n- Selectionne des phrases completes et coherentes\n- Privilegie les faits, chiffres et conclusions\n- Reponds UNIQUEMENT en JSON valide\n\nFormat de reponse:\n{\"highlights\": [\"phrase 1\", \"phrase 2\", \"phrase 3\"]}\n\nTitre: {title}\nContenu: {content}",
+      "options": {
+        "temperature": 0.2,
+        "num_predict": 300
+      }
     }
   },
   "fallback_values": {
     "summary": null,
     "relevance_score": 50,
-    "tags": []
+    "tags": [],
+    "highlights": []
   },
   "timeout_ms": 60000,
   "retry_count": 2,

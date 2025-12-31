@@ -15,6 +15,7 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script src="toast.js"></script>
+    <script src="intelligence.js"></script>
     <style>
         body {
             overflow: hidden;
@@ -1057,6 +1058,93 @@
             display: none;
         }
 
+                /* ========== TRENDING WIDGET v0.4.0 ========== */
+        .trending-widget {
+            background: linear-gradient(135deg, #f8f9fa 0%, #edf2f4 100%);
+            border: 1px solid #e1e4e8;
+            border-radius: var(--radius-md);
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .trending-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .trending-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .trending-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.4rem 0.75rem;
+            background: white;
+            border: 1px solid #dbe4e9;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: var(--primary-color);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .trending-tag:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .trending-tag .trend-count {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .trending-tag:hover .trend-count {
+            color: rgba(255,255,255,0.8);
+        }
+
+        .trending-empty {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
+        [data-theme="dark"] .trending-widget {
+            background: linear-gradient(135deg, var(--card-bg) 0%, var(--bg-color) 100%);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .trending-tag {
+            background: var(--bg-color);
+            border-color: var(--border-color);
+        }
+
+        .trending-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.15rem 0.5rem;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 0.5rem;
+        }
+
         /* ========== RELEVANCE SCORE (minimaliste) ========== */
         .relevance-score {
             font-size: 0.8rem;
@@ -1153,6 +1241,9 @@
                     <div class="stat-label">Haute Pertinence</div>
                 </div>
             </div>
+
+            <!-- Widget Tendances v0.4.0 -->
+            <div id="trendingContainer"></div>
 
             <div class="filters" role="toolbar" aria-label="Filtres des articles">
                 <button class="filter-btn active" data-filter="all" aria-pressed="true">Tous</button>
@@ -1330,6 +1421,12 @@
                 populateTagFilter();
                 renderArticles();
                 updateStats();
+                
+                // v0.4.0: Initialize Intelligence features
+                if (window.KairosIntelligence) {
+                    await KairosIntelligence.init(supabaseClient);
+                    renderTrendingWidget();
+                }
             } catch (error) {
                 console.error('Fetch error:', error);
                 document.getElementById('articlesGrid').innerHTML = `
@@ -1499,10 +1596,13 @@
                 // Relevance score (minimaliste)
                 const relevanceHtml = score > 0 ? `<span class="relevance-score ${scoreClass}">${scorePercent}%</span>` : '';
 
+                // v0.4.0: Trending badge
+                const trendingBadge = window.KairosIntelligence ? KairosIntelligence.getTrendingBadge(tags) : '';
+
                 return `
                     <div class="article-card ${article.read_status ? 'read' : ''}" data-id="${article.id}">
                         <div class="article-header">
-                            <span class="article-source">${article.source || 'Source Inconnue'}</span>
+                            <span class="article-source">${article.source || 'Source Inconnue'}${trendingBadge}</span>
                             ${relevanceHtml}
                         </div>
 
@@ -1667,6 +1767,14 @@
         function resetPageAndRender() {
             currentPage = 1;
             renderArticles();
+        }
+
+
+        // v0.4.0: Render trending widget
+        function renderTrendingWidget() {
+            const container = document.getElementById('trendingContainer');
+            if (!container || !window.KairosIntelligence) return;
+            container.innerHTML = KairosIntelligence.renderTrendingWidget();
         }
 
         function updateStats() {

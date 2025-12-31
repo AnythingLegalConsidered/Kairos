@@ -15,6 +15,7 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script src="toast.js"></script>
+    <script src="intelligence.js"></script>
     <style>
         .article-container {
             max-width: 800px;
@@ -256,6 +257,145 @@
             border-radius: var(--radius-sm);
         }
 
+        
+        /* ========== SIMILAR ARTICLES v0.4.0 ========== */
+        .similar-articles-section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: #faf9f7;
+            border: 1px solid #e8e4dc;
+            border-radius: var(--radius-md);
+        }
+
+        .similar-articles-section h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            font-family: var(--font-body);
+            font-weight: 600;
+        }
+
+        .similar-articles-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .similar-article-item {
+            display: block;
+            padding: 1rem;
+            background: white;
+            border: 1px solid #e8e4dc;
+            border-radius: var(--radius-sm);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .similar-article-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .similar-article-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+
+        .similar-article-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .similar-source {
+            color: var(--text-secondary);
+        }
+
+        .similar-tag {
+            padding: 0.15rem 0.5rem;
+            background: #edf2f4;
+            color: var(--primary-color);
+            border-radius: 10px;
+            font-size: 0.75rem;
+        }
+
+        /* ========== HIGHLIGHTS v0.4.0 ========== */
+        .highlights-section {
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #fff9e6 0%, #fffbf0 100%);
+            border: 1px solid #f0e6cc;
+            border-radius: var(--radius-md);
+            border-left: 4px solid #f0c040;
+        }
+
+        .highlights-section h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #b08000;
+            margin-bottom: 1rem;
+            font-family: var(--font-body);
+            font-weight: 600;
+        }
+
+        .highlights-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .highlight-item {
+            position: relative;
+            padding: 0.75rem 0 0.75rem 1.5rem;
+            color: var(--text-primary);
+            line-height: 1.6;
+            border-bottom: 1px solid rgba(240, 192, 64, 0.2);
+        }
+
+        .highlight-item:last-child {
+            border-bottom: none;
+        }
+
+        .highlight-item::before {
+            content: '"';
+            position: absolute;
+            left: 0;
+            top: 0.5rem;
+            font-size: 1.5rem;
+            color: #f0c040;
+            font-family: Georgia, serif;
+        }
+
+        /* Dark mode */
+        [data-theme="dark"] .similar-articles-section {
+            background: var(--card-bg);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .similar-article-item {
+            background: var(--bg-color);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .similar-tag {
+            background: rgba(124, 157, 184, 0.15);
+        }
+
+        [data-theme="dark"] .highlights-section {
+            background: linear-gradient(135deg, rgba(240, 192, 64, 0.1) 0%, rgba(240, 192, 64, 0.05) 100%);
+            border-color: rgba(240, 192, 64, 0.3);
+        }
+
+        [data-theme="dark"] .highlights-section h3 {
+            color: #f0c040;
+        }
+
         /* Loading & Error states */
         .loading-container {
             display: flex;
@@ -378,6 +518,20 @@
     </div>
 
     <script>
+
+        // v0.4.0: Load and display similar articles
+        async function loadSimilarArticles() {
+            if (!window.KairosIntelligence || !article) return;
+
+            await KairosIntelligence.init(supabaseClient);
+            const similar = await KairosIntelligence.getSimilarArticles(article.id, 5);
+
+            const container = document.getElementById('similarArticlesContainer');
+            if (container && similar.length > 0) {
+                container.innerHTML = KairosIntelligence.renderSimilarArticles(similar);
+            }
+        }
+
         // Initialize Supabase client
         const { url, anonKey, options } = window.KairosConfig.getSupabaseConfig();
         const supabaseClient = window.supabase.createClient(url, anonKey, options);

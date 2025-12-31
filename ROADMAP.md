@@ -138,6 +138,14 @@
 
 ## Changelog
 
+### v0.4.0 (31/12/2024) ✅
+- Detection de tendances : widget affichant les tags trending (24h)
+- Articles similaires : recommandations basees sur tags communs
+- Highlights automatiques : extraction des phrases cles (nouveau prompt IA)
+- Scoring personnalise : boost du score selon historique de lecture
+- Nouveau fichier  pour les fonctionnalites IA
+- Migration SQL  avec tables et fonctions RPC
+- Prompt IA "highlights" ajoute a 
 ### v0.3.0 (30/12/2024) ✅
 - Bibliothèque de sources : 114 sources RSS (42 FR + 72 EN)
 - Nouvelle page `sources.html` avec filtres et recherche
@@ -161,4 +169,4 @@
 
 ---
 
-*Dernière mise à jour : 30 décembre 2024*
+*Dernière mise à jour : 31 décembre 2024*

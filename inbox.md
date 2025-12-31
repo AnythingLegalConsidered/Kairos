@@ -41,7 +41,7 @@ _Rien pour l'instant_
 | Feature | PRD | Statut |
 |---------|-----|--------|
 | v0.3.0 - Bibliothèque de Sources | `docs/prd/bibliotheque-sources.md` | **Implémenté** ✅ |
-| v0.4.0 - Intelligence Avancée | `docs/prd/intelligence-avancee.md` | A créer |
+| v0.4.0 - Intelligence Avancée | `docs/prd/intelligence-avancee.md` | **Implémenté** ✅ |
 | v0.5.0 - Vue Kanban + PWA | `docs/prd/ux-kanban-pwa.md` | A créer |
 
 ---
@@ -49,7 +49,9 @@ _Rien pour l'instant_
 ## Archive (terminé)
 
 - [x] v0.1.0 - MVP complet (22/12/2024)
-- [x] v0.2.0 - Tags, TLDR, score pertinence (en cours selon ROADMAP)
+- [x] v0.2.0 - Tags, TLDR, score pertinence (22/12/2024)
+- [x] v0.3.0 - Bibliothèque de sources (30/12/2024)
+- [x] v0.4.0 - Intelligence avancée (31/12/2024)
 
 ---
 
@@ -71,4 +73,20 @@ _Rien pour l'instant_
 
 ---
 
-*Dernière mise à jour : 30 décembre 2024*
+
+
+### Session du 31/12/2024
+- **v0.4.0 Intelligence Avancée implémentée** :
+  - `006_intelligence.sql` : table user_tag_preferences, colonne highlights, fonctions RPC
+  - `intelligence.js` : module JS pour tendances, articles similaires, highlights
+  - Widget tendances sur le dashboard (tags trending 24h)
+  - Badge "Trending" sur les articles concernés
+  - Articles similaires sur la page de détail
+  - Section highlights (phrases clés) sur la page de détail
+  - Scoring personnalisé basé sur l'historique de lecture
+  - Prompt "highlights" ajouté à prompts.json
+  - PRD créé : docs/prd/intelligence-avancee.md
+  - ROADMAP.md mis à jour
+---
+
+*Dernière mise à jour : 31 décembre 2024*
